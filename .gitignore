@@ -52,3 +52,8 @@ docs/superpowers
 # cloudflare wrangler
 .wrangler
 requestRecord.mock.js
+# Environment files
+.env
+.env.local
+.env.*
+!.env.example
