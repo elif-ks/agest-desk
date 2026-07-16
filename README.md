@@ -1,18 +1,47 @@
 <p align="center">
-  <img src="public/icons/AgestLogo.png" width="220">
+  <img src="public/icons/AgestLogo.png" width="220" alt="AGEST Logo">
 </p>
 
 <h1 align="center">AGEST Desk</h1>
 
 <p align="center">
-Kurumsal Help Desk & Ticket Yönetim Sistemi
+  Kurumsal Help Desk & Ticket Yönetim Sistemi
 </p>
+
+<p align="center">
+  React • TypeScript • Node.js • Express • MySQL
+</p>
+
+---
 
 # AGEST Desk
 
 Şirket içi departmanlar arasında talep oluşturma, takip etme ve yönetme amacıyla geliştirilen Help Desk (Ticket) uygulaması.
 
 ---
+## 📸 Ekran Görüntüleri
+
+### 🔐 Giriş Ekranı
+
+Kullanıcı adı ve şifre ile güvenli giriş ekranı.
+
+![Giriş Ekranı](screenshots/login.png)
+
+---
+
+### 📊 Dashboard
+
+Kullanıcıya ait genel istatistikleri ve sistem özetini gösteren ana ekran.
+
+![Dashboard](screenshots/panel.png)
+
+---
+
+### 🎫 Talep Yönetimi
+
+Yeni talep oluşturma, gelen ve gönderilen taleplerin yönetildiği ekran.
+
+![Talep Yönetimi](screenshots/talep.png)
 
 ## Proje Hakkında
 
