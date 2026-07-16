@@ -1,343 +1,712 @@
 import type {
   ActionType,
   ProColumns,
-  ProDescriptionsItemProps,
 } from '@ant-design/pro-components';
 import {
-  FooterToolbar,
   PageContainer,
   ProDescriptions,
   ProTable,
 } from '@ant-design/pro-components';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FormattedMessage, useIntl } from '@umijs/max';
-import { Button, Drawer, type FormInstance, Input, message } from 'antd';
-import React, { useCallback, useRef, useState } from 'react';
-import { removeRule, rule } from '@/services/ant-design-pro/api';
-import CreateForm from './components/CreateForm';
-import UpdateForm from './components/UpdateForm';
+import { useLocation } from '@umijs/max';
+import {
+  Button,
+  Drawer,
+  Space,
+  Tag,
+  Typography,
+  message,
+} from 'antd';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-const TableList: React.FC = () => {
-  const actionRef = useRef<ActionType | null>(null);
-  const queryClient = useQueryClient();
+import { apiRequest } from '@/services/helpDeskApi';
 
-  const [showDetail, setShowDetail] = useState<boolean>(false);
-  const [currentRow, setCurrentRow] = useState<API.RuleListItem>();
-  const [selectedRowsState, setSelectedRows] = useState<API.RuleListItem[]>([]);
+const { Text } = Typography;
 
-  /**
-   * @en-US International configuration
-   * @zh-CN 国际化配置
-   * */
-  const intl = useIntl();
+type TicketStatus =
+  | 'bekliyor'
+  | 'islemde'
+  | 'tamamlandi';
 
-  const [messageApi, contextHolder] = message.useMessage();
+type TicketPriority =
+  | 'dusuk'
+  | 'orta'
+  | 'yuksek'
+  | 'kritik';
 
-  const { mutate: delRun, isPending: loading } = useMutation({
-    mutationFn: removeRule,
-    onSuccess: () => {
-      setSelectedRows([]);
-      actionRef.current?.reloadAndRest?.();
-      queryClient.invalidateQueries({ queryKey: ['rule'] });
+type TicketType = {
+  id: number;
+  ticketNo: string;
+  baslik: string;
+  departmanId: number;
+  departman: string;
+  oncelik: TicketPriority;
+  durum: TicketStatus;
+  aciklama: string;
+  olusturmaTarihi: string;
+  guncellemeTarihi: string;
+  olusturanKullaniciId?: number;
+  olusturanKullaniciAdi?: string;
+  olusturanKullanici?: string;
+};
 
-      messageApi.success('Deleted successfully and will refresh soon');
-    },
-    onError: () => {
-      messageApi.error('Delete failed, please try again');
-    },
-  });
+type DurumGuncelleResponse = {
+  message: string;
+  talep?: TicketType;
+};
 
-  const columns: ProColumns<API.RuleListItem>[] = [
-    {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.updateForm.ruleName.nameLabel"
-          defaultMessage="Rule name"
-        />
-      ),
-      dataIndex: 'name',
-      render: (dom, entity) => {
-        return (
-          <Button
-            type="link"
-            onClick={() => {
-              setCurrentRow(entity);
-              setShowDetail(true);
-            }}
-          >
-            {dom}
-          </Button>
+const oncelikMetni: Record<
+  TicketPriority,
+  string
+> = {
+  dusuk: 'Düşük',
+  orta: 'Orta',
+  yuksek: 'Yüksek',
+  kritik: 'Kritik',
+};
+
+const durumMetni: Record<TicketStatus, string> = {
+  bekliyor: 'Bekliyor',
+  islemde: 'İşlemde',
+  tamamlandi: 'Tamamlandı',
+};
+
+const TableList = () => {
+  const actionRef = useRef<ActionType | null>(
+    null,
+  );
+
+  const location = useLocation();
+
+  const [talepler, setTalepler] = useState<
+    TicketType[]
+  >([]);
+
+  const [yukleniyor, setYukleniyor] =
+    useState<boolean>(true);
+
+  const [
+    durumGuncelleniyor,
+    setDurumGuncelleniyor,
+  ] = useState<boolean>(false);
+
+  const [showDetail, setShowDetail] =
+    useState<boolean>(false);
+
+  const [currentTicket, setCurrentTicket] =
+    useState<TicketType>();
+
+  const gonderilenSayfasiMi =
+    location.pathname.includes('/gonderilen');
+
+  const gelenSayfasiMi =
+    location.pathname.includes('/gelen');
+
+  const talepleriGetir = async () => {
+    setYukleniyor(true);
+
+    try {
+      let endpoint = '/talepler';
+
+      if (gelenSayfasiMi) {
+        endpoint = '/talepler?tip=gelen';
+      }
+
+      if (gonderilenSayfasiMi) {
+        endpoint = '/talepler?tip=gonderilen';
+      }
+
+      const data =
+        await apiRequest<TicketType[]>(
+          endpoint,
         );
-      },
+
+      setTalepler(data);
+    } catch (error) {
+      console.error(
+        'Talep listeleme hatası:',
+        error,
+      );
+
+      if (error instanceof Error) {
+        message.error(error.message);
+      } else {
+        message.error(
+          'Talepler yüklenemedi.',
+        );
+      }
+    } finally {
+      setYukleniyor(false);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentTicket(undefined);
+    setShowDetail(false);
+
+    talepleriGetir();
+  }, [location.pathname]);
+
+  const durumGuncelle = async (
+    talepId: number,
+    yeniDurum: TicketStatus,
+  ) => {
+    setDurumGuncelleniyor(true);
+
+    try {
+      const data =
+        await apiRequest<DurumGuncelleResponse>(
+          `/talepler/${talepId}/durum`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify({
+              durum: yeniDurum,
+            }),
+          },
+        );
+
+      message.success(data.message);
+
+      if (data.talep) {
+        setTalepler((mevcutTalepler) =>
+          mevcutTalepler.map((talep) =>
+            talep.id === data.talep?.id
+              ? data.talep
+              : talep,
+          ),
+        );
+
+        setCurrentTicket(data.talep);
+      }
+    } catch (error) {
+      console.error(
+        'Talep durum güncelleme hatası:',
+        error,
+      );
+
+      if (error instanceof Error) {
+        message.error(error.message);
+      } else {
+        message.error(
+          'Talep durumu güncellenirken beklenmeyen bir hata oluştu.',
+        );
+      }
+    } finally {
+      setDurumGuncelleniyor(false);
+    }
+  };
+
+  const filteredTickets = useMemo(() => {
+    if (
+      location.pathname.includes('/bekleyen')
+    ) {
+      return talepler.filter(
+        (ticket) =>
+          ticket.durum === 'bekliyor',
+      );
+    }
+
+    if (
+      location.pathname.includes('/islemde')
+    ) {
+      return talepler.filter(
+        (ticket) =>
+          ticket.durum === 'islemde',
+      );
+    }
+
+    if (
+      location.pathname.includes(
+        '/tamamlanan',
+      )
+    ) {
+      return talepler.filter(
+        (ticket) =>
+          ticket.durum === 'tamamlandi',
+      );
+    }
+
+    return talepler;
+  }, [location.pathname, talepler]);
+
+  const pageTitle = useMemo(() => {
+    if (
+      location.pathname.includes('/gelen')
+    ) {
+      return 'Bana Gelen Talepler';
+    }
+
+    if (
+      location.pathname.includes(
+        '/gonderilen',
+      )
+    ) {
+      return 'Gönderdiğim Talepler';
+    }
+
+    if (
+      location.pathname.includes(
+        '/bekleyen',
+      )
+    ) {
+      return 'Bekleyen Talepler';
+    }
+
+    if (
+      location.pathname.includes('/islemde')
+    ) {
+      return 'İşlemdeki Talepler';
+    }
+
+    if (
+      location.pathname.includes(
+        '/tamamlanan',
+      )
+    ) {
+      return 'Tamamlanan Talepler';
+    }
+
+    return 'Tüm Talepler';
+  }, [location.pathname]);
+
+  const pageDescription = useMemo(() => {
+    if (gonderilenSayfasiMi) {
+      return 'Diğer departmanlara gönderdiğiniz talepleri ve güncel durumlarını takip edebilirsiniz.';
+    }
+
+    if (gelenSayfasiMi) {
+      return 'Departmanınıza gönderilen talepleri görüntüleyebilir ve işlem yapabilirsiniz.';
+    }
+
+    return 'Help Desk sistemindeki talepleri görüntüleyebilir ve filtreleyebilirsiniz.';
+  }, [
+    gelenSayfasiMi,
+    gonderilenSayfasiMi,
+  ]);
+
+  const oncelikRengi = (
+    oncelik: TicketPriority,
+  ) => {
+    if (oncelik === 'dusuk') {
+      return 'green';
+    }
+
+    if (oncelik === 'orta') {
+      return 'gold';
+    }
+
+    if (oncelik === 'yuksek') {
+      return 'orange';
+    }
+
+    return 'red';
+  };
+
+  const durumRengi = (
+    durum: TicketStatus,
+  ) => {
+    if (durum === 'bekliyor') {
+      return 'gold';
+    }
+
+    if (durum === 'islemde') {
+      return 'blue';
+    }
+
+    return 'green';
+  };
+
+  const tarihFormatla = (
+    tarih: string,
+  ) => {
+    if (!tarih) {
+      return '-';
+    }
+
+    return new Date(tarih).toLocaleString(
+      'tr-TR',
+    );
+  };
+
+  const columns: ProColumns<TicketType>[] = [
+    {
+      title: 'Ticket No',
+      dataIndex: 'ticketNo',
+      copyable: true,
+      width: 160,
+      render: (_, record) => (
+        <Button
+          type="link"
+          style={{
+            padding: 0,
+            fontWeight: 600,
+          }}
+          onClick={() => {
+            setCurrentTicket(record);
+            setShowDetail(true);
+          }}
+        >
+          {record.ticketNo}
+        </Button>
+      ),
     },
     {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.titleDesc"
-          defaultMessage="Description"
-        />
-      ),
-      dataIndex: 'desc',
-      valueType: 'textarea',
+      title: 'Talep Başlığı',
+      dataIndex: 'baslik',
+      ellipsis: true,
+      width: 280,
     },
     {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.titleCallNo"
-          defaultMessage="Number of service calls"
-        />
-      ),
-      dataIndex: 'callNo',
-      sorter: true,
-      hideInForm: true,
-      renderText: (val: string) =>
-        `${val}${intl.formatMessage({
-          id: 'pages.searchTable.tenThousand',
-          defaultMessage: ' 万 ',
-        })}`,
+      title: 'Hedef Departman',
+      dataIndex: 'departman',
+      width: 180,
     },
     {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.titleStatus"
-          defaultMessage="Status"
-        />
-      ),
-      dataIndex: 'status',
-      hideInForm: true,
+      title: 'Gönderen',
+      dataIndex: 'olusturanKullanici',
+      width: 180,
+      search: false,
+      render: (_, record) =>
+        record.olusturanKullanici ||
+        record.olusturanKullaniciAdi ||
+        '-',
+    },
+    {
+      title: 'Öncelik',
+      dataIndex: 'oncelik',
+      valueType: 'select',
       valueEnum: {
-        0: {
-          text: (
-            <FormattedMessage
-              id="pages.searchTable.nameStatus.default"
-              defaultMessage="Shut down"
-            />
-          ),
-          status: 'Default',
+        dusuk: {
+          text: 'Düşük',
         },
-        1: {
-          text: (
-            <FormattedMessage
-              id="pages.searchTable.nameStatus.running"
-              defaultMessage="Running"
-            />
-          ),
-          status: 'Processing',
+        orta: {
+          text: 'Orta',
         },
-        2: {
-          text: (
-            <FormattedMessage
-              id="pages.searchTable.nameStatus.online"
-              defaultMessage="Online"
-            />
-          ),
-          status: 'Success',
+        yuksek: {
+          text: 'Yüksek',
         },
-        3: {
-          text: (
-            <FormattedMessage
-              id="pages.searchTable.nameStatus.abnormal"
-              defaultMessage="Abnormal"
-            />
-          ),
-          status: 'Error',
+        kritik: {
+          text: 'Kritik',
         },
       },
+      width: 130,
+      render: (_, record) => (
+        <Tag
+          color={oncelikRengi(
+            record.oncelik,
+          )}
+        >
+          {oncelikMetni[record.oncelik]}
+        </Tag>
+      ),
     },
     {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.titleUpdatedAt"
-          defaultMessage="Last scheduled time"
-        />
-      ),
-      sorter: true,
-      dataIndex: 'updatedAt',
-      valueType: 'dateTime',
-      formItemRender: (
-        item: ProColumns<API.RuleListItem>,
-        {
-          defaultRender,
-          ...rest
-        }: {
-          defaultRender: (
-            item: ProColumns<API.RuleListItem>,
-          ) => React.ReactNode;
+      title: 'Durum',
+      dataIndex: 'durum',
+      valueType: 'select',
+      valueEnum: {
+        bekliyor: {
+          text: 'Bekliyor',
         },
-        form: FormInstance,
-      ) => {
-        const status = form.getFieldValue('status');
-        if (`${status}` === '0') {
-          return false;
-        }
-        if (`${status}` === '3') {
-          return (
-            <Input
-              {...rest}
-              placeholder={intl.formatMessage({
-                id: 'pages.searchTable.exception',
-                defaultMessage: 'Please enter the reason for the exception!',
-              })}
-            />
-          );
-        }
-        return defaultRender(item);
+        islemde: {
+          text: 'İşlemde',
+        },
+        tamamlandi: {
+          text: 'Tamamlandı',
+        },
       },
+      width: 150,
+      render: (_, record) => (
+        <Tag
+          color={durumRengi(record.durum)}
+        >
+          {durumMetni[record.durum]}
+        </Tag>
+      ),
     },
     {
-      title: (
-        <FormattedMessage
-          id="pages.searchTable.titleOption"
-          defaultMessage="Operating"
-        />
-      ),
-      dataIndex: 'option',
+      title: 'Oluşturma Tarihi',
+      dataIndex: 'olusturmaTarihi',
+      search: false,
+      width: 190,
+      render: (_, record) =>
+        tarihFormatla(
+          record.olusturmaTarihi,
+        ),
+    },
+    {
+      title: 'İşlem',
       valueType: 'option',
+      width: 120,
+      fixed: 'right',
       render: (_, record) => [
-        <UpdateForm
-          trigger={
-            <Button type="link">
-              <FormattedMessage
-                id="pages.searchTable.config"
-                defaultMessage="Configuration"
-              />
-            </Button>
-          }
-          key="config"
-          onOk={actionRef.current?.reload}
-          values={record}
-        />,
-        <a key="subscribeAlert" href="https://procomponents.ant.design/">
-          <FormattedMessage
-            id="pages.searchTable.subscribeAlert"
-            defaultMessage="Subscribe to alerts"
-          />
-        </a>,
+        <Button
+          key="detail"
+          type="link"
+          onClick={() => {
+            setCurrentTicket(record);
+            setShowDetail(true);
+          }}
+        >
+          Görüntüle
+        </Button>,
       ],
     },
   ];
 
-  /**
-   *  Delete node
-   * @zh-CN 删除节点
-   *
-   * @param selectedRows
-   */
-  const handleRemove = useCallback(
-    async (selectedRows: API.RuleListItem[]) => {
-      if (!selectedRows?.length) {
-        messageApi.warning('请选择删除项');
-
-        return;
-      }
-
-      await delRun({
-        data: {
-          key: selectedRows.map((row) => row.key),
-        },
-      });
-    },
-    [delRun, messageApi.warning],
-  );
-
   return (
-    <PageContainer>
-      {contextHolder}
-      <ProTable<API.RuleListItem, API.PageParams>
-        headerTitle={intl.formatMessage({
-          id: 'pages.searchTable.title',
-          defaultMessage: 'Enquiry form',
-        })}
+    <PageContainer
+      title={pageTitle}
+      content={pageDescription}
+    >
+      <ProTable<TicketType>
         actionRef={actionRef}
-        rowKey="key"
-        search={{
-          labelWidth: 120,
-        }}
-        toolBarRender={() => [
-          <CreateForm key="create" reload={actionRef.current?.reload} />,
-        ]}
-        request={rule}
+        rowKey="id"
+        loading={yukleniyor}
+        headerTitle={`${pageTitle} (${filteredTickets.length})`}
         columns={columns}
-        rowSelection={{
-          onChange: (_, selectedRows) => {
-            setSelectedRows(selectedRows);
+        dataSource={filteredTickets}
+        search={{
+          labelWidth: 'auto',
+          searchText: 'Ara',
+          resetText: 'Temizle',
+        }}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: true,
+        }}
+        scroll={{
+          x: 1350,
+        }}
+        options={{
+          reload: () => {
+            talepleriGetir();
           },
+          density: true,
+          setting: true,
         }}
       />
-      {selectedRowsState?.length > 0 && (
-        <FooterToolbar
-          extra={
-            <div>
-              <FormattedMessage
-                id="pages.searchTable.chosen"
-                defaultMessage="Chosen"
-              />{' '}
-              <span style={{ fontWeight: 600 }}>
-                {selectedRowsState.length}
-              </span>{' '}
-              <FormattedMessage
-                id="pages.searchTable.item"
-                defaultMessage="项"
-              />
-              &nbsp;&nbsp;
-              <span>
-                <FormattedMessage
-                  id="pages.searchTable.totalServiceCalls"
-                  defaultMessage="Total number of service calls"
-                />{' '}
-                {selectedRowsState.reduce(
-                  (pre, item) => pre + (item.callNo ?? 0),
-                  0,
-                )}{' '}
-                <FormattedMessage
-                  id="pages.searchTable.tenThousand"
-                  defaultMessage="万"
-                />
-              </span>
-            </div>
-          }
-        >
-          <Button
-            loading={loading}
-            onClick={() => {
-              handleRemove(selectedRowsState);
-            }}
-          >
-            <FormattedMessage
-              id="pages.searchTable.batchDeletion"
-              defaultMessage="Batch deletion"
-            />
-          </Button>
-          <Button type="primary">
-            <FormattedMessage
-              id="pages.searchTable.batchApproval"
-              defaultMessage="Batch approval"
-            />
-          </Button>
-        </FooterToolbar>
-      )}
 
       <Drawer
-        size={600}
+        title="Talep Detayı"
+        size={650}
         open={showDetail}
         onClose={() => {
-          setCurrentRow(undefined);
           setShowDetail(false);
+          setCurrentTicket(undefined);
         }}
-        closable={false}
       >
-        {currentRow?.name && (
-          <ProDescriptions<API.RuleListItem>
-            column={2}
-            title={currentRow?.name}
-            request={async () => ({
-              data: currentRow || {},
-            })}
-            params={{
-              id: currentRow?.name,
-            }}
-            columns={columns as ProDescriptionsItemProps<API.RuleListItem>[]}
-          />
+        {currentTicket && (
+          <>
+            <ProDescriptions<TicketType>
+              title={
+                currentTicket.ticketNo
+              }
+              column={1}
+              dataSource={currentTicket}
+              columns={[
+                {
+                  title: 'Talep Başlığı',
+                  dataIndex: 'baslik',
+                },
+                {
+                  title: 'Hedef Departman',
+                  dataIndex: 'departman',
+                },
+                {
+                  title: 'Gönderen',
+                  dataIndex:
+                    'olusturanKullanici',
+                  render: () =>
+                    currentTicket.olusturanKullanici ||
+                    currentTicket.olusturanKullaniciAdi ||
+                    '-',
+                },
+                {
+                  title: 'Öncelik',
+                  dataIndex: 'oncelik',
+                  render: () => (
+                    <Tag
+                      color={oncelikRengi(
+                        currentTicket.oncelik,
+                      )}
+                    >
+                      {
+                        oncelikMetni[
+                          currentTicket.oncelik
+                        ]
+                      }
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Durum',
+                  dataIndex: 'durum',
+                  render: () => (
+                    <Tag
+                      color={durumRengi(
+                        currentTicket.durum,
+                      )}
+                    >
+                      {
+                        durumMetni[
+                          currentTicket.durum
+                        ]
+                      }
+                    </Tag>
+                  ),
+                },
+                {
+                  title: 'Oluşturma Tarihi',
+                  dataIndex:
+                    'olusturmaTarihi',
+                  render: () =>
+                    tarihFormatla(
+                      currentTicket.olusturmaTarihi,
+                    ),
+                },
+                {
+                  title: 'Son Güncelleme',
+                  dataIndex:
+                    'guncellemeTarihi',
+                  render: () =>
+                    tarihFormatla(
+                      currentTicket.guncellemeTarihi,
+                    ),
+                },
+              ]}
+            />
+
+            <div
+              style={{
+                marginTop: 24,
+                padding: 20,
+                background:
+                  'rgba(0, 0, 0, 0.02)',
+                borderRadius: 8,
+              }}
+            >
+              <Text strong>
+                Talep Açıklaması
+              </Text>
+
+              <div
+                style={{
+                  marginTop: 12,
+                }}
+              >
+                <Text>
+                  {currentTicket.aciklama}
+                </Text>
+              </div>
+            </div>
+
+            {!gonderilenSayfasiMi && (
+              <div
+                style={{
+                  marginTop: 24,
+                  paddingTop: 24,
+                  borderTop:
+                    '1px solid rgba(0, 0, 0, 0.06)',
+                }}
+              >
+                <Text
+                  strong
+                  style={{
+                    display: 'block',
+                    marginBottom: 16,
+                  }}
+                >
+                  Talep İşlemleri
+                </Text>
+
+                <Space wrap>
+                 {currentTicket.durum === 'bekliyor' && (
+  <Button
+    type="primary"
+    loading={durumGuncelleniyor}
+    onClick={() =>
+      durumGuncelle(
+        currentTicket.id,
+        'islemde',
+      )
+    }
+  >
+    İşleme Al
+  </Button>
+)}
+
+{currentTicket.durum === 'islemde' && (
+  <>
+    <Button
+      loading={durumGuncelleniyor}
+      onClick={() =>
+        durumGuncelle(
+          currentTicket.id,
+          'bekliyor',
+        )
+      }
+    >
+      Bekliyora Geri Al
+    </Button>
+
+    <Button
+      type="primary"
+      loading={durumGuncelleniyor}
+      onClick={() =>
+        durumGuncelle(
+          currentTicket.id,
+          'tamamlandi',
+        )
+      }
+    >
+      Tamamlandı Olarak İşaretle
+    </Button>
+  </>
+)}
+
+{currentTicket.durum === 'tamamlandi' && (
+  <>
+    <Button
+      loading={durumGuncelleniyor}
+      onClick={() =>
+        durumGuncelle(
+          currentTicket.id,
+          'islemde',
+        )
+      }
+    >
+      İşleme Geri Al
+    </Button>
+
+    <Tag color="green">
+      Bu talep tamamlandı
+    </Tag>
+  </>
+)}
+                </Space>
+              </div>
+            )}
+
+            {gonderilenSayfasiMi && (
+              <div
+                style={{
+                  marginTop: 24,
+                  padding: 16,
+                  background:
+                    'rgba(22, 119, 255, 0.06)',
+                  borderRadius: 8,
+                }}
+              >
+                <Text type="secondary">
+                  Bu talebi başka bir
+                  departmana gönderdiğiniz için
+                  yalnızca durumunu takip
+                  edebilirsiniz. İşlem yapma
+                  yetkisi hedef departmandadır.
+                </Text>
+              </div>
+            )}
+          </>
         )}
       </Drawer>
     </PageContainer>

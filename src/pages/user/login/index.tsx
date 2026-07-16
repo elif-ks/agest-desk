@@ -1,413 +1,496 @@
 import {
-  AlipayCircleOutlined,
   LockOutlined,
-  MobileOutlined,
-  TaobaoCircleOutlined,
+  SafetyCertificateOutlined,
   UserOutlined,
-  WeiboCircleOutlined,
 } from '@ant-design/icons';
 import {
   LoginForm,
-  ProFormCaptcha,
   ProFormCheckbox,
   ProFormText,
 } from '@ant-design/pro-components';
+import { Helmet } from '@umijs/max';
 import {
-  FormattedMessage,
-  Helmet,
-  SelectLang,
-  useIntl,
-  useModel,
-} from '@umijs/max';
-import { Alert, App, Button, Tabs } from 'antd';
+  Alert,
+  App,
+  Card,
+  Col,
+  Row,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
 import { createStyles } from 'antd-style';
-import React, { startTransition, useState } from 'react';
-import { Footer } from '@/components';
-import { login } from '@/services/ant-design-pro/api';
-import { getFakeCaptcha } from '@/services/ant-design-pro/login';
+import React, { useState } from 'react';
+
+import {
+  apiRequest,
+} from '@/services/helpDeskApi';
+
 import Settings from '../../../../config/defaultSettings';
 
-/**
- * Validate redirect URL to prevent open redirect attacks.
- * Only allow same-origin relative paths starting with '/'.
- */
-const getSafeRedirectUrl = (redirect: string | null): string => {
-  if (!redirect?.startsWith('/')) return '/';
+const { Text, Title } = Typography;
 
-  if (redirect.startsWith('//')) return '/';
-
-  try {
-    const parsed = new URL(redirect, window.location.origin);
-    if (parsed.origin !== window.location.origin) return '/';
-    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-  } catch {
-    return '/';
-  }
+type LoginValues = {
+  kullaniciAdi: string;
+  sifre: string;
+  beniHatirla?: boolean;
 };
 
-const useStyles = createStyles(({ token }) => {
-  return {
-    action: {
-      marginLeft: '8px',
-      color: 'rgba(0, 0, 0, 0.2)',
-      fontSize: '24px',
-      verticalAlign: 'middle',
-      cursor: 'pointer',
-      transition: 'color 0.3s',
-      '&:hover': {
-        color: token.colorPrimaryActive,
-      },
-    },
-    lang: {
-      width: 42,
-      height: 42,
-      lineHeight: '42px',
-      position: 'fixed',
-      right: 16,
-      borderRadius: token.borderRadius,
-      ':hover': {
-        backgroundColor: token.colorBgTextHover,
-      },
-    },
-    container: {
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100vh',
-      overflow: 'auto',
-      backgroundImage:
-        "url('https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr')",
-      backgroundSize: '100% 100%',
-    },
-  };
-});
-
-const ActionIcons = () => {
-  const { styles } = useStyles();
-
-  return (
-    <>
-      <AlipayCircleOutlined
-        key="AlipayCircleOutlined"
-        className={styles.action}
-      />
-      <TaobaoCircleOutlined
-        key="TaobaoCircleOutlined"
-        className={styles.action}
-      />
-      <WeiboCircleOutlined
-        key="WeiboCircleOutlined"
-        className={styles.action}
-      />
-    </>
-  );
+type Kullanici = {
+  id: number;
+  kullaniciAdi: string;
+  ad: string;
+  soyad: string;
+  email: string;
+  rol: string;
+  departmanId: number | null;
+  departman: string | null;
 };
 
-const Lang = () => {
-  const { styles } = useStyles();
-
-  return (
-    <div className={styles.lang} data-lang>
-      {SelectLang && <SelectLang />}
-    </div>
-  );
+type LoginResponse = {
+  message: string;
+  token?: string;
+  kullanici?: Kullanici;
 };
 
-const LoginMessage: React.FC<{
-  content: string;
-}> = ({ content }) => {
-  return (
-    <Alert
-      style={{
-        marginBottom: 24,
-      }}
-      title={content}
-      type="error"
-      showIcon
-    />
-  );
-};
+const useStyles = createStyles(() => ({
+  container: {
+    minHeight: '100vh',
+    background:
+      'linear-gradient(135deg, #eef3ff 0%, #f7f9fc 48%, #ffffff 100%)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+  },
+
+  wrapper: {
+    width: '100%',
+    maxWidth: 1120,
+  },
+
+  card: {
+    overflow: 'hidden',
+    borderRadius: 28,
+    boxShadow:
+      '0 28px 90px rgba(15, 23, 42, 0.14)',
+    border: '1px solid rgba(15, 23, 42, 0.06)',
+  },
+
+  brandArea: {
+    minHeight: 620,
+    padding: '56px 48px',
+    background:
+      'linear-gradient(145deg, #3e649d 0%, #6076a0b0 54%, #2156a4 100%)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    color: '#ffffff',
+  },
+
+  logo: {
+    width: 190,
+    maxWidth: '100%',
+    objectFit: 'contain',
+  },
+
+  brandContent: {
+    maxWidth: 450,
+  },
+
+  brandTitle: {
+    color: '#ffffff !important',
+    fontSize: '42px !important',
+    marginBottom: '14px !important',
+  },
+
+  brandText: {
+    color: 'rgba(255, 255, 255, 0.74)',
+    fontSize: 17,
+    lineHeight: 1.8,
+  },
+
+  feature: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    color: 'rgba(255, 255, 255, 0.88)',
+  },
+
+  loginArea: {
+    minHeight: 620,
+    background: '#ffffff',
+    padding: '56px 52px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
+
+  loginHeader: {
+    marginBottom: 28,
+  },
+
+  form: {
+    maxWidth: 420,
+    width: '100%',
+    margin: '0 auto',
+  },
+
+  footer: {
+    marginTop: 34,
+    textAlign: 'center',
+  },
+}));
 
 const Login: React.FC = () => {
-  const [userLoginState, setUserLoginState] = useState<API.LoginResult>({});
-  const [type, setType] = useState<string>('account');
-  const { initialState, setInitialState } = useModel('@@initialState');
   const { styles } = useStyles();
   const { message } = App.useApp();
-  const intl = useIntl();
 
-  const fetchUserInfo = async () => {
-    const userInfo = await initialState?.fetchUserInfo?.();
-    if (userInfo) {
-      startTransition(() => {
-        setInitialState((s) => ({
-          ...s,
-          currentUser: userInfo,
-        }));
-      });
-    }
-  };
+  const [hataMesaji, setHataMesaji] =
+    useState<string>('');
 
-  const handleSubmit = async (values: API.LoginParams) => {
+  const [
+    girisYapiliyor,
+    setGirisYapiliyor,
+  ] = useState<boolean>(false);
+
+  const handleSubmit = async (
+    values: LoginValues,
+  ) => {
+    setGirisYapiliyor(true);
+    setHataMesaji('');
+
     try {
-      // 登录
-      const msg = await login({ ...values, type });
-      if (msg.status === 'ok') {
-        const defaultLoginSuccessMessage = intl.formatMessage({
-          id: 'pages.login.success',
-          defaultMessage: '登录成功！',
-        });
-        message.success(defaultLoginSuccessMessage);
-        await fetchUserInfo();
-        const urlParams = new URL(window.location.href).searchParams;
-        const redirectUrl = getSafeRedirectUrl(urlParams.get('redirect'));
-        window.location.href = redirectUrl;
-        return;
+      const data =
+        await apiRequest<LoginResponse>(
+          '/auth/login',
+          {
+            method: 'POST',
+            auth: false,
+            body: JSON.stringify({
+              kullaniciAdi:
+                values.kullaniciAdi.trim(),
+              sifre: values.sifre,
+            }),
+          },
+        );
+
+      if (
+        !data.token ||
+        !data.kullanici
+      ) {
+        throw new Error(
+          'Giriş bilgileri sunucudan alınamadı.',
+        );
       }
-      // 如果失败去设置用户错误信息
-      setUserLoginState(msg);
-    } catch {
-      const defaultLoginFailureMessage = intl.formatMessage({
-        id: 'pages.login.failure',
-        defaultMessage: '登录失败，请重试！',
-      });
-      message.error(defaultLoginFailureMessage);
+
+      localStorage.setItem(
+        'helpDeskToken',
+        data.token,
+      );
+
+      localStorage.setItem(
+        'helpDeskKullanici',
+        JSON.stringify(
+          data.kullanici,
+        ),
+      );
+
+      message.success(
+        `Hoş geldiniz ${data.kullanici.ad}`,
+      );
+
+      window.location.href =
+        '/dashboard';
+    } catch (error) {
+      console.error(
+        'Giriş hatası:',
+        error,
+      );
+
+      if (error instanceof Error) {
+        setHataMesaji(
+          error.message,
+        );
+      } else {
+        setHataMesaji(
+          'Giriş sırasında beklenmeyen bir hata oluştu.',
+        );
+      }
+    } finally {
+      setGirisYapiliyor(false);
     }
   };
-  const { status, type: loginType } = userLoginState;
 
   return (
     <div className={styles.container}>
       <Helmet>
         <title>
-          {intl.formatMessage({
-            id: 'menu.login',
-            defaultMessage: '登录页',
-          })}
-          {Settings.title && ` - ${Settings.title}`}
+          Giriş Yap
+          {Settings.title
+            ? ` - ${Settings.title}`
+            : ''}
         </title>
       </Helmet>
-      <Lang />
-      <div
-        style={{
-          flex: '1',
-          padding: '32px 0',
-        }}
-      >
-        <LoginForm
-          contentStyle={{
-            minWidth: 280,
-            maxWidth: '75vw',
-          }}
-          logo={<img alt="logo" src="/logo.svg" />}
-          title="Ant Design"
-          subTitle={intl.formatMessage({
-            id: 'pages.layouts.userLayout.title',
-          })}
-          initialValues={{
-            autoLogin: true,
-          }}
-          actions={[
-            <FormattedMessage
-              key="loginWith"
-              id="pages.login.loginWith"
-              defaultMessage="其他登录方式"
-            />,
-            <ActionIcons key="icons" />,
-          ]}
-          onFinish={async (values) => {
-            await handleSubmit(values as API.LoginParams);
+
+      <div className={styles.wrapper}>
+        <Card
+          className={styles.card}
+          styles={{
+            body: {
+              padding: 0,
+            },
           }}
         >
-          <Tabs
-            activeKey={type}
-            onChange={setType}
-            centered
-            items={[
-              {
-                key: 'account',
-                label: intl.formatMessage({
-                  id: 'pages.login.accountLogin.tab',
-                  defaultMessage: '账户密码登录',
-                }),
-              },
-              {
-                key: 'mobile',
-                label: intl.formatMessage({
-                  id: 'pages.login.phoneLogin.tab',
-                  defaultMessage: '手机号登录',
-                }),
-              },
-            ]}
-          />
-
-          {status === 'error' && loginType === 'account' && (
-            <LoginMessage
-              content={intl.formatMessage({
-                id: 'pages.login.accountLogin.errorMessage',
-                defaultMessage: '账户或密码错误(admin/ant.design)',
-              })}
-            />
-          )}
-          {type === 'account' && (
-            <>
-              <ProFormText
-                name="username"
-                fieldProps={{
-                  size: 'large',
-                  prefix: <UserOutlined />,
-                }}
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.username.placeholder',
-                  defaultMessage: '用户名: admin or user',
-                })}
-                rules={[
-                  {
-                    required: true,
-                    message: (
-                      <FormattedMessage
-                        id="pages.login.username.required"
-                        defaultMessage="请输入用户名!"
-                      />
-                    ),
-                  },
-                ]}
-              />
-              <ProFormText.Password
-                name="password"
-                fieldProps={{
-                  size: 'large',
-                  prefix: <LockOutlined />,
-                }}
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.password.placeholder',
-                  defaultMessage: '密码: ant.design',
-                })}
-                rules={[
-                  {
-                    required: true,
-                    message: (
-                      <FormattedMessage
-                        id="pages.login.password.required"
-                        defaultMessage="请输入密码！"
-                      />
-                    ),
-                  },
-                ]}
-              />
-            </>
-          )}
-
-          {status === 'error' && loginType === 'mobile' && (
-            <LoginMessage content="验证码错误" />
-          )}
-          {type === 'mobile' && (
-            <>
-              <ProFormText
-                fieldProps={{
-                  size: 'large',
-                  prefix: <MobileOutlined />,
-                }}
-                name="mobile"
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.phoneNumber.placeholder',
-                  defaultMessage: '手机号',
-                })}
-                rules={[
-                  {
-                    required: true,
-                    message: (
-                      <FormattedMessage
-                        id="pages.login.phoneNumber.required"
-                        defaultMessage="请输入手机号！"
-                      />
-                    ),
-                  },
-                  {
-                    pattern: /^1\d{10}$/,
-                    message: (
-                      <FormattedMessage
-                        id="pages.login.phoneNumber.invalid"
-                        defaultMessage="手机号格式错误！"
-                      />
-                    ),
-                  },
-                ]}
-              />
-              <ProFormCaptcha
-                fieldProps={{
-                  size: 'large',
-                  prefix: <LockOutlined />,
-                }}
-                captchaProps={{
-                  size: 'large',
-                }}
-                placeholder={intl.formatMessage({
-                  id: 'pages.login.captcha.placeholder',
-                  defaultMessage: '请输入验证码',
-                })}
-                captchaTextRender={(timing, count) => {
-                  if (timing) {
-                    return `${count} ${intl.formatMessage({
-                      id: 'pages.getCaptchaSecondText',
-                      defaultMessage: '获取验证码',
-                    })}`;
-                  }
-                  return intl.formatMessage({
-                    id: 'pages.login.phoneLogin.getVerificationCode',
-                    defaultMessage: '获取验证码',
-                  });
-                }}
-                name="captcha"
-                rules={[
-                  {
-                    required: true,
-                    message: (
-                      <FormattedMessage
-                        id="pages.login.captcha.required"
-                        defaultMessage="请输入验证码！"
-                      />
-                    ),
-                  },
-                ]}
-                onGetCaptcha={async (phone) => {
-                  const result = await getFakeCaptcha({
-                    phone,
-                  });
-                  if (!result) {
-                    return;
-                  }
-                  message.success('获取验证码成功！验证码为：1234');
-                }}
-              />
-            </>
-          )}
-          <div
-            style={{
-              marginBottom: 24,
-            }}
-          >
-            <ProFormCheckbox noStyle name="autoLogin">
-              <FormattedMessage
-                id="pages.login.rememberMe"
-                defaultMessage="自动登录"
-              />
-            </ProFormCheckbox>
-            <Button
-              type="link"
-              style={{
-                float: 'right',
-                padding: 0,
-              }}
+          <Row>
+            <Col
+              xs={0}
+              md={11}
             >
-              <FormattedMessage
-                id="pages.login.forgotPassword"
-                defaultMessage="忘记密码"
-              />
-            </Button>
-          </div>
-        </LoginForm>
+              <div
+                className={
+                  styles.brandArea
+                }
+              >
+                <div>
+                  <img
+                    src="/icons/AgestLogo.png"
+                    alt="AGEST Logo"
+                    className={
+                      styles.logo
+                    }
+                  />
+                </div>
+
+                <div
+                  className={
+                    styles.brandContent
+                  }
+                >
+                  <Tag
+                    color="blue"
+                    style={{
+                      marginBottom: 18,
+                    }}
+                  >
+                    Kurumsal Talep Sistemi
+                  </Tag>
+
+                  <Title
+                    level={1}
+                    className={
+                      styles.brandTitle
+                    }
+                  >
+                    AGEST Desk
+                  </Title>
+
+                  <Text
+                    className={
+                      styles.brandText
+                    }
+                  >
+                    Departmanlar arası destek,
+                    talep ve iş takibi için
+                    geliştirilmiş şirket içi
+                    yönetim platformu.
+                  </Text>
+
+                  <Space
+                    direction="vertical"
+                    size={16}
+                    style={{
+                      marginTop: 34,
+                    }}
+                  >
+                    <div
+                      className={
+                        styles.feature
+                      }
+                    >
+                      <SafetyCertificateOutlined />
+                      Güvenli kullanıcı girişi
+                    </div>
+
+                    <div
+                      className={
+                        styles.feature
+                      }
+                    >
+                      <SafetyCertificateOutlined />
+                      Departman bazlı
+                      yetkilendirme
+                    </div>
+
+                    <div
+                      className={
+                        styles.feature
+                      }
+                    >
+                      <SafetyCertificateOutlined />
+                      Gerçek zamanlı talep
+                      takibi
+                    </div>
+                  </Space>
+                </div>
+
+                <Text
+                  style={{
+                    color:
+                      'rgba(255, 255, 255, 0.48)',
+                  }}
+                >
+                  © 2026 AGEST
+                </Text>
+              </div>
+            </Col>
+
+            <Col
+              xs={24}
+              md={13}
+            >
+              <div
+                className={
+                  styles.loginArea
+                }
+              >
+                <div
+                  className={
+                    styles.form
+                  }
+                >
+                  <div
+                    className={
+                      styles.loginHeader
+                    }
+                  >
+                    <Title
+                      level={2}
+                      style={{
+                        marginBottom: 8,
+                      }}
+                    >
+                      Hesabınıza Giriş Yapın
+                    </Title>
+
+                    <Text type="secondary">
+                      Kullanıcı adınız ve
+                      şifrenizle AGEST Desk
+                      çalışma alanına erişin.
+                    </Text>
+                  </div>
+
+                  <LoginForm<LoginValues>
+                    onFinish={handleSubmit}
+                    submitter={{
+                      searchConfig: {
+                        submitText:
+                          'Giriş Yap',
+                      },
+                      submitButtonProps: {
+                        size: 'large',
+                        loading:
+                          girisYapiliyor,
+                        block: true,
+                        style: {
+                          height: 48,
+                          borderRadius: 10,
+                          fontWeight: 600,
+                        },
+                      },
+                      resetButtonProps: {
+                        style: {
+                          display: 'none',
+                        },
+                      },
+                    }}
+                  >
+                    {hataMesaji && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message={
+                          hataMesaji
+                        }
+                        style={{
+                          marginBottom: 24,
+                        }}
+                      />
+                    )}
+
+                    <ProFormText
+                      name="kullaniciAdi"
+                      label="Kullanıcı Adı"
+                      fieldProps={{
+                        size: 'large',
+                        prefix:
+                          <UserOutlined />,
+                        autoComplete:
+                          'username',
+                      }}
+                      placeholder="Kullanıcı adınızı giriniz"
+                      rules={[
+                        {
+                          required: true,
+                          message:
+                            'Kullanıcı adınızı giriniz.',
+                        },
+                      ]}
+                    />
+
+                    <ProFormText.Password
+                      name="sifre"
+                      label="Şifre"
+                      fieldProps={{
+                        size: 'large',
+                        prefix:
+                          <LockOutlined />,
+                        autoComplete:
+                          'current-password',
+                      }}
+                      placeholder="Şifrenizi giriniz"
+                      rules={[
+                        {
+                          required: true,
+                          message:
+                            'Şifrenizi giriniz.',
+                        },
+                      ]}
+                    />
+
+                    <div
+                      style={{
+                        marginTop: -4,
+                        marginBottom: 22,
+                      }}
+                    >
+                      <ProFormCheckbox
+                        noStyle
+                        name="beniHatirla"
+                      >
+                        Beni Hatırla
+                      </ProFormCheckbox>
+                    </div>
+                  </LoginForm>
+
+                  <div
+                    className={
+                      styles.footer
+                    }
+                  >
+                    <Text type="secondary">
+                      Yetki veya giriş sorunu
+                      yaşarsanız sistem
+                      yöneticinizle iletişime
+                      geçin.
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
       </div>
-      <Footer />
     </div>
   );
 };
