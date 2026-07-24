@@ -16,10 +16,13 @@
 
 # AGEST Desk
 
-Şirket içi departmanlar arasında talep oluşturma, takip etme ve yönetme amacıyla geliştirilen Help Desk (Ticket) uygulaması.
+AGEST Desk, şirket içerisindeki departmanlar arasında teknik ve operasyonel taleplerin oluşturulması, takip edilmesi ve yönetilmesi amacıyla geliştirilmiş kurumsal bir **Help Desk (Ticket Management)** uygulamasıdır.
+
+Sistem; rol bazlı yetkilendirme, departman yönetimi, talep yaşam döngüsü, öncelik sistemi ve e-posta bildirimleri gibi kurumsal ihtiyaçları karşılayacak şekilde tasarlanmıştır.
 
 ---
-## 📸 Ekran Görüntüleri
+
+# 📸 Ekran Görüntüleri
 
 ### 🔐 Giriş Ekranı
 
@@ -31,7 +34,7 @@ Kullanıcı adı ve şifre ile güvenli giriş ekranı.
 
 ### 📊 Dashboard
 
-Kullanıcıya ait genel istatistikleri ve sistem özetini gösteren ana ekran.
+Kullanıcının sistem özetini, istatistiklerini ve son işlemlerini görüntüleyebildiği ana panel.
 
 ![Dashboard](screenshots/panel.png)
 
@@ -43,65 +46,74 @@ Yeni talep oluşturma, gelen ve gönderilen taleplerin yönetildiği ekran.
 
 ![Talep Yönetimi](screenshots/talep.png)
 
-## Proje Hakkında
-
-AGEST Desk; şirket içerisindeki departmanların birbirlerine destek talepleri gönderebildiği modern bir Help Desk sistemidir.
-
-Kullanıcılar;
-
-- Yeni talep oluşturabilir.
-- Gelen talepleri görüntüleyebilir.
-- Gönderdiği talepleri takip edebilir.
-- Talepleri İşlemde veya Tamamlandı durumuna getirebilir.
-- Yanlış yapılan işlemleri geri alabilir.
-- Otomatik e-posta bildirimleri alabilir.
-
 ---
 
-## Özellikler
+# 🚀 Özellikler
 
 - JWT Authentication
 - Güvenli kullanıcı girişi
 - Rol bazlı yetkilendirme
 - Departman bazlı talep yönetimi
-- Öncelik sistemi
-- Ticket numarası oluşturma
-- Bekliyor / İşlemde / Tamamlandı durumları
-- Durum geri alma özelliği
-- Gelen Talepler ekranı
-- Gönderilen Talepler ekranı
-- Dashboard
-- Otomatik e-posta bildirimi
-- Mobil uyumlu arayüz
+- Öncelik sistemi (Düşük / Orta / Yüksek / Kritik)
+- Otomatik Ticket numarası oluşturma
+- Talep durum yönetimi
+  - Bekliyor
+  - İşlemde
+  - Tamamlandı
+- Durum geri alma işlemleri
+- Dashboard ve istatistik ekranları
+- Kullanıcı Yönetimi
+- Departman Yönetimi
+- Gelen Talepler
+- Gönderilen Talepler
+- Dosya ekleme desteği
+- Otomatik e-posta bildirimleri
+- Responsive arayüz
 
 ---
 
-## Kullanılan Teknolojiler
+# 🏗️ Mimari
 
-### Frontend
+Proje geliştirme sürecinde tamamen yeniden yapılandırılmıştır.
+
+Yapılan başlıca iyileştirmeler:
+
+- Ant Design ve Ant Design Pro bağımlılıkları tamamen kaldırıldı.
+- Özel React + TypeScript tabanlı UI bileşenleri geliştirildi.
+- Özel Layout sistemi oluşturuldu.
+- Dashboard, tablolar, formlar ve modal yapıları yeniden geliştirildi.
+- Tek açık tema mimarisi oluşturuldu.
+- Kod tabanı sadeleştirildi ve gereksiz template dosyaları temizlendi.
+
+---
+
+# 🛠️ Kullanılan Teknolojiler
+
+## Frontend
 
 - React
 - TypeScript
-- Ant Design Pro
-- Ant Design
 - Umi Max
+- Custom UI Library
+- Custom Layout
+- CSS
 
-### Backend
+## Backend
 
 - Node.js
 - Express.js
-- JWT
+- JWT Authentication
 - Nodemailer
 
-### Database
+## Database
 
 - MySQL
 
 ---
 
-## Proje Yapısı
+# 📁 Proje Yapısı
 
-```
+```text
 help-desk
 │
 ├── backend
@@ -122,9 +134,9 @@ help-desk
 
 ---
 
-## Kurulum
+# ⚙️ Kurulum
 
-### 1. Repository'i indir
+## 1. Projeyi Klonlayın
 
 ```bash
 git clone https://github.com/elif-ks/agest-desk.git
@@ -132,17 +144,16 @@ git clone https://github.com/elif-ks/agest-desk.git
 
 ---
 
-### 2. Frontend
+## 2. Frontend
 
 ```bash
 npm install
-
 npm start
 ```
 
 ---
 
-### 3. Backend
+## 3. Backend
 
 ```bash
 cd backend
@@ -154,11 +165,11 @@ node server.js
 
 ---
 
-### 4. Veritabanı
+## 4. Veritabanı
 
-database klasörü içerisindeki
+`database` klasörü içerisindeki
 
-```
+```text
 help_desk.sql
 ```
 
@@ -166,17 +177,11 @@ dosyasını phpMyAdmin üzerinden içe aktarın.
 
 ---
 
-### 5. Ortam Değişkenleri
+## 5. Ortam Değişkenleri
 
-Backend klasörü içerisine
+Backend klasörü içerisine `.env` dosyası oluşturun.
 
-```
-.env
-```
-
-dosyası oluşturun.
-
-Örnek yapı:
+Örnek:
 
 ```env
 PORT=5000
@@ -194,9 +199,9 @@ MAIL_PASSWORD=google_uygulama_parolasi
 
 ---
 
-## Talep Durum Akışı
+# 🔄 Talep Durum Akışı
 
-```
+```text
 Bekliyor
      │
      ▼
@@ -212,22 +217,14 @@ Tamamlandı → İşlemde
 
 ---
 
-## Ekran Görüntüleri
-
-Yakında eklenecektir.
-
----
-
-## Geliştirici
+# 👨‍💻 Geliştirici
 
 **Elif Karakuş**
 
-GitHub
-
-https://github.com/elif-ks
+GitHub: https://github.com/elif-ks
 
 ---
 
-## Lisans
+# 📄 Lisans
 
-Bu proje eğitim ve staj amacıyla geliştirilmiştir.
+Bu proje eğitim, staj ve portföy amacıyla geliştirilmiştir.
