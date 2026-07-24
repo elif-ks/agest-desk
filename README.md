@@ -78,7 +78,6 @@ Proje geliştirme sürecinde tamamen yeniden yapılandırılmıştır.
 
 Yapılan başlıca iyileştirmeler:
 
-- Ant Design ve Ant Design Pro bağımlılıkları tamamen kaldırıldı.
 - Özel React + TypeScript tabanlı UI bileşenleri geliştirildi.
 - Özel Layout sistemi oluşturuldu.
 - Dashboard, tablolar, formlar ve modal yapıları yeniden geliştirildi.
