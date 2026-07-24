@@ -1,24 +1,9 @@
-import type { ProLayoutProps } from '@ant-design/pro-components';
-
-/**
- * @name
- */
-const Settings: ProLayoutProps & {
+const Settings: {
+  title: string;
   logo?: string;
 } = {
-  navTheme: 'light',
-  colorPrimary: '#1677ff',
-  layout: 'mix',
-  contentWidth: 'Fluid',
-  fixedHeader: false,
-  fixSiderbar: true,
-  colorWeak: false,
   title: 'AGEST Desk',
-logo: '/icons/AgestLogo.png',
-  iconfontUrl: '',
-  token: {
-    
-  },
+  logo: '/icons/AgestLogo.png',
 };
 
 export default Settings;

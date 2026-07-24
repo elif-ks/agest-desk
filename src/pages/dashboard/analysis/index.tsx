@@ -1,36 +1,36 @@
-import {
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  FileTextOutlined,
-  InboxOutlined,
-  SendOutlined,
-  SyncOutlined,
-} from '@ant-design/icons';
-import { GridContent } from '@ant-design/pro-components';
 import { history } from '@umijs/max';
 import {
   Button,
   Card,
-  Col,
-  Empty,
+  DataTable,
+  type DataTableColumn,
+  EmptyState,
+  Grid,
+  GridItem,
+  Heading,
   Progress,
-  Row,
-  Spin,
+  Spinner,
   Statistic,
-  Table,
   Tag,
-  Typography,
-  message,
-} from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+  type TagTone,
+  Text,
+  ToastHost,
+  toast,
+} from '@/components/ui';
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  FileTextIcon,
+  InboxIcon,
+  SendIcon,
+  SyncIcon,
+} from '@/components/ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
   apiRequest,
   getKullanici,
 } from '@/services/helpDeskApi';
-
-const { Title, Text } = Typography;
 
 type TicketStatus =
   | 'bekliyor'
@@ -91,7 +91,7 @@ const rolMetni: Record<string, string> = {
 
 const oncelikRengi = (
   oncelik: TicketPriority,
-) => {
+): TagTone => {
   if (oncelik === 'dusuk') {
     return 'green';
   }
@@ -109,7 +109,7 @@ const oncelikRengi = (
 
 const durumRengi = (
   durum: TicketStatus,
-) => {
+): TagTone => {
   if (durum === 'bekliyor') {
     return 'gold';
   }
@@ -177,9 +177,9 @@ const Analysis = () => {
           );
 
           if (error instanceof Error) {
-            message.error(error.message);
+            toast.error(error.message);
           } else {
-            message.error(
+            toast.error(
               'Dashboard verileri yüklenemedi.',
             );
           }
@@ -249,23 +249,21 @@ const Analysis = () => {
         .slice(0, 5);
     }, [gonderilenTalepler]);
 
-  const gelenColumns: ColumnsType<TicketType> =
+  const gelenColumns: DataTableColumn<TicketType>[] =
     [
       {
         title: 'Ticket No',
         dataIndex: 'ticketNo',
         key: 'ticketNo',
         width: 150,
-        render: (
-          ticketNo: string,
-        ) => (
-          <Text
-            strong
-            copyable
-          >
+        render: (value) => {
+          const ticketNo = String(value);
+          return (
+          <Text strong copyable>
             {ticketNo}
           </Text>
-        ),
+          );
+        },
       },
       {
         title: 'Talep Başlığı',
@@ -291,60 +289,60 @@ const Analysis = () => {
         dataIndex: 'oncelik',
         key: 'oncelik',
         width: 120,
-        render: (
-          oncelik: TicketPriority,
-        ) => (
+        render: (value) => {
+          const oncelik =
+            value as TicketPriority;
+          return (
           <Tag
-            color={oncelikRengi(
+            tone={oncelikRengi(
               oncelik,
             )}
           >
             {oncelikMetni[oncelik]}
           </Tag>
-        ),
+          );
+        },
       },
       {
         title: 'Durum',
         dataIndex: 'durum',
         key: 'durum',
         width: 130,
-        render: (
-          durum: TicketStatus,
-        ) => (
-          <Tag color={durumRengi(durum)}>
+        render: (value) => {
+          const durum =
+            value as TicketStatus;
+          return (
+          <Tag tone={durumRengi(durum)}>
             {durumMetni[durum]}
           </Tag>
-        ),
+          );
+        },
       },
       {
         title: 'Tarih',
         dataIndex: 'olusturmaTarihi',
         key: 'olusturmaTarihi',
         width: 180,
-        render: (
-          tarih: string,
-        ) =>
-          tarihFormatla(tarih),
+        render: (value) =>
+          tarihFormatla(String(value)),
       },
     ];
 
-  const gonderilenColumns: ColumnsType<TicketType> =
+  const gonderilenColumns: DataTableColumn<TicketType>[] =
     [
       {
         title: 'Ticket No',
         dataIndex: 'ticketNo',
         key: 'ticketNo',
         width: 150,
-        render: (
-          ticketNo: string,
-        ) => (
-          <Text
-            strong
-            copyable
-          >
+        render: (value) => {
+          const ticketNo = String(value);
+          return (
+          <Text strong copyable>
             {ticketNo}
           </Text>
-        ),
+          );
+        },
       },
       {
         title: 'Talep Başlığı',
@@ -363,40 +361,42 @@ const Analysis = () => {
         dataIndex: 'oncelik',
         key: 'oncelik',
         width: 120,
-        render: (
-          oncelik: TicketPriority,
-        ) => (
+        render: (value) => {
+          const oncelik =
+            value as TicketPriority;
+          return (
           <Tag
-            color={oncelikRengi(
+            tone={oncelikRengi(
               oncelik,
             )}
           >
             {oncelikMetni[oncelik]}
           </Tag>
-        ),
+          );
+        },
       },
       {
         title: 'Durum',
         dataIndex: 'durum',
         key: 'durum',
         width: 130,
-        render: (
-          durum: TicketStatus,
-        ) => (
-          <Tag color={durumRengi(durum)}>
+        render: (value) => {
+          const durum =
+            value as TicketStatus;
+          return (
+          <Tag tone={durumRengi(durum)}>
             {durumMetni[durum]}
           </Tag>
-        ),
+          );
+        },
       },
       {
         title: 'Tarih',
         dataIndex: 'olusturmaTarihi',
         key: 'olusturmaTarihi',
         width: 180,
-        render: (
-          tarih: string,
-        ) =>
-          tarihFormatla(tarih),
+        render: (value) =>
+          tarihFormatla(String(value)),
       },
     ];
 
@@ -405,7 +405,7 @@ const Analysis = () => {
       key: 'gelen',
       title: 'Bana Gelen',
       value: gelenTalepler.length,
-      icon: <InboxOutlined />,
+      icon: <InboxIcon />,
       description:
         'Departmanınıza gönderilen talepler',
       onClick: () =>
@@ -417,7 +417,7 @@ const Analysis = () => {
       key: 'gonderilen',
       title: 'Gönderdiklerim',
       value: gonderilenTalepler.length,
-      icon: <SendOutlined />,
+      icon: <SendIcon />,
       description:
         'Diğer departmanlara gönderilenler',
       onClick: () =>
@@ -429,7 +429,7 @@ const Analysis = () => {
       key: 'bekleyen',
       title: 'Bekleyen',
       value: bekleyenTalep,
-      icon: <ClockCircleOutlined />,
+      icon: <ClockIcon />,
       description:
         'Henüz işleme alınmayan talepler',
       onClick: () =>
@@ -441,7 +441,7 @@ const Analysis = () => {
       key: 'islemde',
       title: 'İşlemde',
       value: islemdeTalep,
-      icon: <SyncOutlined spin />,
+      icon: <SyncIcon spin />,
       description:
         'Üzerinde çalışılan talepler',
       onClick: () =>
@@ -453,7 +453,7 @@ const Analysis = () => {
       key: 'tamamlanan',
       title: 'Tamamlanan',
       value: tamamlananTalep,
-      icon: <CheckCircleOutlined />,
+      icon: <CheckCircleIcon />,
       description:
         'Çözüme ulaştırılan talepler',
       onClick: () =>
@@ -465,7 +465,7 @@ const Analysis = () => {
       key: 'toplam',
       title: 'Toplam Görünen',
       value: toplamGorunen,
-      icon: <FileTextOutlined />,
+      icon: <FileTextIcon />,
       description:
         'Erişebildiğiniz bütün talepler',
     },
@@ -473,7 +473,8 @@ const Analysis = () => {
 
   if (yukleniyor) {
     return (
-      <GridContent>
+      <div className="ui-page-content">
+        <ToastHost />
         <div
           style={{
             minHeight: 480,
@@ -482,28 +483,24 @@ const Analysis = () => {
             justifyContent: 'center',
           }}
         >
-          <Spin
+          <Spinner
             size="large"
-            tip="AGEST Desk hazırlanıyor..."
+            label="AGEST Desk hazırlanıyor..."
           />
         </div>
-      </GridContent>
+      </div>
     );
   }
 
   return (
-    <GridContent>
+    <div className="ui-page-content">
+      <ToastHost />
       <Card
-        variant="borderless"
         style={{
           marginBottom: 24,
           overflow: 'hidden',
         }}
-        styles={{
-          body: {
-            padding: 0,
-          },
-        }}
+        bodyStyle={{ padding: 0 }}
       >
         <div
           style={{
@@ -525,7 +522,7 @@ const Analysis = () => {
             }}
           >
             <Text
-              type="secondary"
+              secondary
               style={{
                 display: 'block',
                 marginBottom: 8,
@@ -535,7 +532,7 @@ const Analysis = () => {
               AGEST Desk çalışma alanı
             </Text>
 
-            <Title
+            <Heading
               level={1}
               style={{
                 marginTop: 0,
@@ -545,10 +542,10 @@ const Analysis = () => {
               Hoş Geldiniz,{' '}
               {kullanici?.ad ||
                 'Kullanıcı'}
-            </Title>
+            </Heading>
 
             <Text
-              type="secondary"
+              secondary
               style={{
                 fontSize: 16,
               }}
@@ -568,19 +565,19 @@ const Analysis = () => {
                 marginTop: 22,
               }}
             >
-              <Tag color="blue">
+              <Tag tone="blue">
                 Kullanıcı:{' '}
                 {kullanici?.kullaniciAdi ||
                   '-'}
               </Tag>
 
-              <Tag color="purple">
+              <Tag tone="purple">
                 Departman:{' '}
                 {kullanici?.departman ||
                   '-'}
               </Tag>
 
-              <Tag color="cyan">
+              <Tag tone="cyan">
                 Rol:{' '}
                 {rolMetni[
                   kullanici?.rol || ''
@@ -599,8 +596,8 @@ const Analysis = () => {
               }}
             >
               <Button
-                type="primary"
-                icon={<InboxOutlined />}
+                variant="primary"
+                icon={<InboxIcon />}
                 onClick={() =>
                   history.push(
                     '/talepler/gelen',
@@ -612,7 +609,7 @@ const Analysis = () => {
 
               <Button
                 icon={
-                  <SendOutlined />
+                  <SendIcon />
                 }
                 onClick={() =>
                   history.push(
@@ -658,15 +655,11 @@ const Analysis = () => {
         </div>
       </Card>
 
-      <Row gutter={[20, 20]}>
+      <Grid gap={20} className="ui-dashboard-stats">
         {istatistikKartlari.map(
           (kart) => (
-            <Col
+            <GridItem
               key={kart.key}
-              xs={24}
-              sm={12}
-              lg={8}
-              xl={4}
             >
               <Card
                 hoverable={
@@ -687,7 +680,7 @@ const Analysis = () => {
                 />
 
                 <Text
-                  type="secondary"
+                  secondary
                   style={{
                     display: 'block',
                     marginTop: 12,
@@ -697,18 +690,19 @@ const Analysis = () => {
                   {kart.description}
                 </Text>
               </Card>
-            </Col>
+            </GridItem>
           ),
         )}
-      </Row>
+      </Grid>
 
-      <Row
-        gutter={[24, 24]}
+      <Grid
+        gap={24}
+        className="ui-dashboard-main"
         style={{
           marginTop: 24,
         }}
       >
-        <Col xs={24} xl={7}>
+        <GridItem>
           <Card
             title="Departman Performansı"
             style={{
@@ -723,26 +717,22 @@ const Analysis = () => {
               }}
             >
               <Progress
-                type="dashboard"
+                variant="dashboard"
                 percent={tamamlanmaOrani}
-                strokeColor={{
-                  '0%': '#1677ff',
-                  '100%': '#52c41a',
-                }}
               />
             </div>
 
-            <Row gutter={[12, 12]}>
-              <Col span={8}>
+            <Grid gap={12} className="ui-three-cols">
+              <GridItem>
                 <Statistic
                   title="Toplam"
                   value={
                     gelenTalepler.length
                   }
                 />
-              </Col>
+              </GridItem>
 
-              <Col span={8}>
+              <GridItem>
                 <Statistic
                   title="Aktif"
                   value={
@@ -750,20 +740,20 @@ const Analysis = () => {
                     islemdeTalep
                   }
                 />
-              </Col>
+              </GridItem>
 
-              <Col span={8}>
+              <GridItem>
                 <Statistic
                   title="Çözülen"
                   value={
                     tamamlananTalep
                   }
                 />
-              </Col>
-            </Row>
+              </GridItem>
+            </Grid>
 
             <Text
-              type="secondary"
+              secondary
               style={{
                 display: 'block',
                 marginTop: 22,
@@ -776,14 +766,14 @@ const Analysis = () => {
               tamamlandı.
             </Text>
           </Card>
-        </Col>
+        </GridItem>
 
-        <Col xs={24} xl={17}>
+        <GridItem>
           <Card
             title="Son Gelen Talepler"
             extra={
               <Button
-                type="link"
+                variant="link"
                 onClick={() =>
                   history.push(
                     '/talepler/gelen',
@@ -799,30 +789,26 @@ const Analysis = () => {
           >
             {sonGelenTalepler.length ===
             0 ? (
-              <Empty description="Departmanınıza gelen talep bulunmuyor." />
+              <EmptyState description="Departmanınıza gelen talep bulunmuyor." />
             ) : (
-              <Table<TicketType>
+              <DataTable<TicketType>
                 rowKey="id"
                 columns={gelenColumns}
-                dataSource={
+                data={
                   sonGelenTalepler
                 }
-                pagination={false}
-                scroll={{
-                  x: 950,
-                }}
-                size="middle"
+                minWidth={950}
               />
             )}
           </Card>
-        </Col>
-      </Row>
+        </GridItem>
+      </Grid>
 
       <Card
         title="Son Gönderdiğim Talepler"
         extra={
           <Button
-            type="link"
+            variant="link"
             onClick={() =>
               history.push(
                 '/talepler/gonderilen',
@@ -838,23 +824,19 @@ const Analysis = () => {
       >
         {sonGonderilenTalepler.length ===
         0 ? (
-          <Empty description="Henüz başka bir departmana talep göndermediniz." />
+          <EmptyState description="Henüz başka bir departmana talep göndermediniz." />
         ) : (
-          <Table<TicketType>
+          <DataTable<TicketType>
             rowKey="id"
             columns={gonderilenColumns}
-            dataSource={
+            data={
               sonGonderilenTalepler
             }
-            pagination={false}
-            scroll={{
-              x: 950,
-            }}
-            size="middle"
+            minWidth={950}
           />
         )}
       </Card>
-    </GridContent>
+    </div>
   );
 };
 

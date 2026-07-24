@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { defineConfig } from '@umijs/max';
 
-import defaultSettings from './defaultSettings';
 import proxy from './proxy';
 import routes from './routes';
 
@@ -12,10 +11,13 @@ export default defineConfig({
   alias: {
     '@root': join(__dirname, '..'),
   },
+  access: {},
 
   routes,
 
   hash: true,
+
+  esbuildMinifyIIFE: true,
 
   publicPath: '/',
 
@@ -32,28 +34,9 @@ export default defineConfig({
 
   initialState: {},
 
-  layout: {
-    locale: false,
-    ...defaultSettings,
-  },
-
   locale: {
     default: 'en-US',
-    antd: true,
+    antd: false,
     baseNavigator: false,
-  },
-
-  antd: {
-    appConfig: {},
-    configProvider: {
-      variant: 'filled',
-      theme: {
-        token: {
-          fontFamily:
-            'Inter, Arial, Helvetica, sans-serif',
-          borderRadius: 8,
-        },
-      },
-    },
   },
 });

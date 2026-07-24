@@ -1,26 +1,37 @@
-import type {
-  ActionType,
-  ProColumns,
-} from '@ant-design/pro-components';
-import {
-  PageContainer,
-  ProDescriptions,
-  ProTable,
-} from '@ant-design/pro-components';
-import { useLocation } from '@umijs/max';
 import {
   Button,
+  type DataTableColumn,
+  DescriptionList,
   Drawer,
-  Space,
+  EmptyState,
+  FormField,
+  ImagePreview,
+  Input,
+  LinkButton,
+  ManagedDataTable,
+  PageHeader,
+  Select,
   Tag,
-  Typography,
-  message,
-} from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+  type TagTone,
+  Text,
+  ToastHost,
+  toast,
+} from '@/components/ui';
+import {
+  DownloadIcon,
+  FileIcon,
+  ReloadIcon,
+} from '@/components/ui/icons';
+import { useLocation } from '@umijs/max';
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import { apiRequest } from '@/services/helpDeskApi';
 
-const { Text } = Typography;
+const BACKEND_URL = 'http://localhost:5000';
 
 type TicketStatus =
   | 'bekliyor'
@@ -32,6 +43,17 @@ type TicketPriority =
   | 'orta'
   | 'yuksek'
   | 'kritik';
+
+type TalepDosyasi = {
+  id: number;
+  talepId: number;
+  dosyaAdi: string;
+  orijinalDosyaAdi: string;
+  dosyaYolu: string;
+  mimeType: string;
+  dosyaBoyutu: number;
+  olusturmaTarihi: string;
+};
 
 type TicketType = {
   id: number;
@@ -47,11 +69,20 @@ type TicketType = {
   olusturanKullaniciId?: number;
   olusturanKullaniciAdi?: string;
   olusturanKullanici?: string;
+  dosyalar?: TalepDosyasi[];
 };
 
 type DurumGuncelleResponse = {
   message: string;
   talep?: TicketType;
+};
+
+type AramaDegerleri = {
+  ticketNo?: string;
+  baslik?: string;
+  departman?: string;
+  oncelik?: TicketPriority;
+  durum?: TicketStatus;
 };
 
 const oncelikMetni: Record<
@@ -64,17 +95,16 @@ const oncelikMetni: Record<
   kritik: 'Kritik',
 };
 
-const durumMetni: Record<TicketStatus, string> = {
+const durumMetni: Record<
+  TicketStatus,
+  string
+> = {
   bekliyor: 'Bekliyor',
   islemde: 'İşlemde',
   tamamlandi: 'Tamamlandı',
 };
 
 const TableList = () => {
-  const actionRef = useRef<ActionType | null>(
-    null,
-  );
-
   const location = useLocation();
 
   const [talepler, setTalepler] = useState<
@@ -94,12 +124,23 @@ const TableList = () => {
 
   const [currentTicket, setCurrentTicket] =
     useState<TicketType>();
+  const [aramaDegerleri, setAramaDegerleri] =
+    useState<AramaDegerleri>({});
+  const [sayfa, setSayfa] =
+    useState(1);
+  const [sayfaBoyutu, setSayfaBoyutu] =
+    useState(10);
 
   const gonderilenSayfasiMi =
-    location.pathname.includes('/gonderilen');
+  location.pathname.includes('/gonderilen');
 
-  const gelenSayfasiMi =
-    location.pathname.includes('/gelen');
+const gelenSayfasiMi =
+  location.pathname.includes('/gelen');
+
+const durumSayfasiMi =
+  location.pathname.includes('/bekleyen') ||
+  location.pathname.includes('/islemde') ||
+  location.pathname.includes('/tamamlanan');
 
   const talepleriGetir = async () => {
     setYukleniyor(true);
@@ -107,13 +148,11 @@ const TableList = () => {
     try {
       let endpoint = '/talepler';
 
-      if (gelenSayfasiMi) {
-        endpoint = '/talepler?tip=gelen';
-      }
-
-      if (gonderilenSayfasiMi) {
-        endpoint = '/talepler?tip=gonderilen';
-      }
+if (gonderilenSayfasiMi) {
+  endpoint = '/talepler?tip=gonderilen';
+} else if (gelenSayfasiMi || durumSayfasiMi) {
+  endpoint = '/talepler?tip=gelen';
+}
 
       const data =
         await apiRequest<TicketType[]>(
@@ -128,9 +167,9 @@ const TableList = () => {
       );
 
       if (error instanceof Error) {
-        message.error(error.message);
+        toast.error(error.message);
       } else {
-        message.error(
+        toast.error(
           'Talepler yüklenemedi.',
         );
       }
@@ -164,7 +203,7 @@ const TableList = () => {
           },
         );
 
-      message.success(data.message);
+      toast.success(data.message);
 
       if (data.talep) {
         setTalepler((mevcutTalepler) =>
@@ -184,9 +223,9 @@ const TableList = () => {
       );
 
       if (error instanceof Error) {
-        message.error(error.message);
+        toast.error(error.message);
       } else {
-        message.error(
+        toast.error(
           'Talep durumu güncellenirken beklenmeyen bir hata oluştu.',
         );
       }
@@ -196,37 +235,68 @@ const TableList = () => {
   };
 
   const filteredTickets = useMemo(() => {
+    let routeTalepleri = talepler;
+
     if (
       location.pathname.includes('/bekleyen')
     ) {
-      return talepler.filter(
+      routeTalepleri = talepler.filter(
         (ticket) =>
           ticket.durum === 'bekliyor',
       );
-    }
-
-    if (
+    } else if (
       location.pathname.includes('/islemde')
     ) {
-      return talepler.filter(
+      routeTalepleri = talepler.filter(
         (ticket) =>
           ticket.durum === 'islemde',
       );
-    }
-
-    if (
+    } else if (
       location.pathname.includes(
         '/tamamlanan',
       )
     ) {
-      return talepler.filter(
+      routeTalepleri = talepler.filter(
         (ticket) =>
           ticket.durum === 'tamamlandi',
       );
     }
 
-    return talepler;
-  }, [location.pathname, talepler]);
+    const normalize = (value: unknown) =>
+      String(value ?? '')
+        .trim()
+        .toLocaleLowerCase('tr-TR');
+
+    return routeTalepleri.filter(
+      (ticket) =>
+        (!aramaDegerleri.ticketNo ||
+          normalize(ticket.ticketNo).includes(
+            normalize(
+              aramaDegerleri.ticketNo,
+            ),
+          )) &&
+        (!aramaDegerleri.baslik ||
+          normalize(ticket.baslik).includes(
+            normalize(aramaDegerleri.baslik),
+          )) &&
+        (!aramaDegerleri.departman ||
+          normalize(ticket.departman).includes(
+            normalize(
+              aramaDegerleri.departman,
+            ),
+          )) &&
+        (!aramaDegerleri.oncelik ||
+          ticket.oncelik ===
+            aramaDegerleri.oncelik) &&
+        (!aramaDegerleri.durum ||
+          ticket.durum ===
+            aramaDegerleri.durum),
+    );
+  }, [
+    aramaDegerleri,
+    location.pathname,
+    talepler,
+  ]);
 
   const pageTitle = useMemo(() => {
     if (
@@ -285,7 +355,7 @@ const TableList = () => {
 
   const oncelikRengi = (
     oncelik: TicketPriority,
-  ) => {
+  ): TagTone => {
     if (oncelik === 'dusuk') {
       return 'green';
     }
@@ -303,7 +373,7 @@ const TableList = () => {
 
   const durumRengi = (
     durum: TicketStatus,
-  ) => {
+  ): TagTone => {
     if (durum === 'bekliyor') {
       return 'gold';
     }
@@ -327,15 +397,61 @@ const TableList = () => {
     );
   };
 
-  const columns: ProColumns<TicketType>[] = [
+  const dosyaBoyutuFormatla = (
+    boyut: number,
+  ) => {
+    if (!boyut) {
+      return '';
+    }
+
+    if (boyut < 1024) {
+      return `${boyut} B`;
+    }
+
+    if (boyut < 1024 * 1024) {
+      return `${(
+        boyut / 1024
+      ).toFixed(1)} KB`;
+    }
+
+    return `${(
+      boyut /
+      (1024 * 1024)
+    ).toFixed(1)} MB`;
+  };
+
+  const dosyaUrlOlustur = (
+    dosyaYolu: string,
+  ) => {
+    if (!dosyaYolu) {
+      return '';
+    }
+
+    if (
+      dosyaYolu.startsWith('http://') ||
+      dosyaYolu.startsWith('https://')
+    ) {
+      return dosyaYolu;
+    }
+
+    return `${BACKEND_URL}${dosyaYolu}`;
+  };
+
+  const gorselDosyasiMi = (
+    mimeType: string,
+  ) => {
+    return mimeType?.startsWith('image/');
+  };
+
+  const columns: DataTableColumn<TicketType>[] = [
     {
       title: 'Ticket No',
+      key: 'ticketNo',
       dataIndex: 'ticketNo',
-      copyable: true,
       width: 160,
       render: (_, record) => (
         <Button
-          type="link"
+          variant="link"
           style={{
             padding: 0,
             fontWeight: 600,
@@ -351,20 +467,22 @@ const TableList = () => {
     },
     {
       title: 'Talep Başlığı',
+      key: 'baslik',
       dataIndex: 'baslik',
       ellipsis: true,
       width: 280,
     },
     {
       title: 'Hedef Departman',
+      key: 'departman',
       dataIndex: 'departman',
       width: 180,
     },
     {
       title: 'Gönderen',
+      key: 'olusturanKullanici',
       dataIndex: 'olusturanKullanici',
       width: 180,
-      search: false,
       render: (_, record) =>
         record.olusturanKullanici ||
         record.olusturanKullaniciAdi ||
@@ -372,26 +490,12 @@ const TableList = () => {
     },
     {
       title: 'Öncelik',
+      key: 'oncelik',
       dataIndex: 'oncelik',
-      valueType: 'select',
-      valueEnum: {
-        dusuk: {
-          text: 'Düşük',
-        },
-        orta: {
-          text: 'Orta',
-        },
-        yuksek: {
-          text: 'Yüksek',
-        },
-        kritik: {
-          text: 'Kritik',
-        },
-      },
       width: 130,
       render: (_, record) => (
         <Tag
-          color={oncelikRengi(
+          tone={oncelikRengi(
             record.oncelik,
           )}
         >
@@ -401,23 +505,12 @@ const TableList = () => {
     },
     {
       title: 'Durum',
+      key: 'durum',
       dataIndex: 'durum',
-      valueType: 'select',
-      valueEnum: {
-        bekliyor: {
-          text: 'Bekliyor',
-        },
-        islemde: {
-          text: 'İşlemde',
-        },
-        tamamlandi: {
-          text: 'Tamamlandı',
-        },
-      },
       width: 150,
       render: (_, record) => (
         <Tag
-          color={durumRengi(record.durum)}
+          tone={durumRengi(record.durum)}
         >
           {durumMetni[record.durum]}
         </Tag>
@@ -425,8 +518,8 @@ const TableList = () => {
     },
     {
       title: 'Oluşturma Tarihi',
+      key: 'olusturmaTarihi',
       dataIndex: 'olusturmaTarihi',
-      search: false,
       width: 190,
       render: (_, record) =>
         tarihFormatla(
@@ -435,281 +528,314 @@ const TableList = () => {
     },
     {
       title: 'İşlem',
-      valueType: 'option',
+      key: 'islem',
       width: 120,
-      fixed: 'right',
-      render: (_, record) => [
+      render: (_, record) => (
         <Button
-          key="detail"
-          type="link"
+          variant="link"
           onClick={() => {
             setCurrentTicket(record);
             setShowDetail(true);
           }}
         >
           Görüntüle
-        </Button>,
-      ],
+        </Button>
+      ),
     },
   ];
 
+  const drawerKapat = () => {
+    setShowDetail(false);
+    setCurrentTicket(undefined);
+  };
+
   return (
-    <PageContainer
-      title={pageTitle}
-      content={pageDescription}
-    >
-      <ProTable<TicketType>
-        actionRef={actionRef}
+    <div className="ui-page-content">
+      <ToastHost />
+      <PageHeader
+        title={pageTitle}
+        description={pageDescription}
+      />
+
+      <form
+        className="ui-filter-panel"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(
+            event.currentTarget,
+          );
+          setAramaDegerleri({
+            ticketNo: String(
+              data.get('ticketNo') || '',
+            ),
+            baslik: String(
+              data.get('baslik') || '',
+            ),
+            departman: String(
+              data.get('departman') || '',
+            ),
+            oncelik:
+              (String(data.get('oncelik') || '') ||
+                undefined) as
+                | TicketPriority
+                | undefined,
+            durum:
+              (String(data.get('durum') || '') ||
+                undefined) as
+                | TicketStatus
+                | undefined,
+          });
+          setSayfa(1);
+        }}
+        onReset={() => {
+          setAramaDegerleri({});
+          setSayfa(1);
+        }}
+      >
+        <div className="ui-filter-grid">
+          <FormField label="Ticket No">
+            <Input name="ticketNo" />
+          </FormField>
+          <FormField label="Talep Başlığı">
+            <Input name="baslik" />
+          </FormField>
+          <FormField label="Hedef Departman">
+            <Input name="departman" />
+          </FormField>
+          <FormField label="Öncelik">
+            <Select
+              name="oncelik"
+              options={[
+                { label: 'Tümü', value: '' },
+                { label: 'Düşük', value: 'dusuk' },
+                { label: 'Orta', value: 'orta' },
+                { label: 'Yüksek', value: 'yuksek' },
+                { label: 'Kritik', value: 'kritik' },
+              ]}
+            />
+          </FormField>
+          <FormField label="Durum">
+            <Select
+              name="durum"
+              options={[
+                { label: 'Tümü', value: '' },
+                { label: 'Bekliyor', value: 'bekliyor' },
+                { label: 'İşlemde', value: 'islemde' },
+                { label: 'Tamamlandı', value: 'tamamlandi' },
+              ]}
+            />
+          </FormField>
+        </div>
+        <div className="ui-filter-actions">
+          <Button type="reset">Temizle</Button>
+          <Button type="submit" variant="primary">Ara</Button>
+        </div>
+      </form>
+
+      <ManagedDataTable<TicketType>
         rowKey="id"
         loading={yukleniyor}
-        headerTitle={`${pageTitle} (${filteredTickets.length})`}
+        title={`${pageTitle} (${filteredTickets.length})`}
         columns={columns}
-        dataSource={filteredTickets}
-        search={{
-          labelWidth: 'auto',
-          searchText: 'Ara',
-          resetText: 'Temizle',
+        data={filteredTickets}
+        emptyText="Talep bulunamadı."
+        minWidth={1350}
+        page={sayfa}
+        pageSize={sayfaBoyutu}
+        onPageChange={setSayfa}
+        onPageSizeChange={(size) => {
+          setSayfaBoyutu(size);
+          setSayfa(1);
         }}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-        }}
-        scroll={{
-          x: 1350,
-        }}
-        options={{
-          reload: () => {
-            talepleriGetir();
-          },
-          density: true,
-          setting: true,
-        }}
+        totalLabel={(total) =>
+          `Toplam ${total} talep`
+        }
+        actions={
+          <Button icon={<ReloadIcon />} onClick={talepleriGetir}>
+            Yenile
+          </Button>
+        }
       />
 
       <Drawer
         title="Talep Detayı"
-        size={650}
+        width={650}
         open={showDetail}
-        onClose={() => {
-          setShowDetail(false);
-          setCurrentTicket(undefined);
-        }}
+        onClose={drawerKapat}
       >
         {currentTicket && (
           <>
-            <ProDescriptions<TicketType>
-              title={
-                currentTicket.ticketNo
-              }
-              column={1}
-              dataSource={currentTicket}
-              columns={[
+            <DescriptionList
+              title={currentTicket.ticketNo}
+              items={[
+                { label: 'Talep Başlığı', value: currentTicket.baslik },
+                { label: 'Hedef Departman', value: currentTicket.departman },
                 {
-                  title: 'Talep Başlığı',
-                  dataIndex: 'baslik',
-                },
-                {
-                  title: 'Hedef Departman',
-                  dataIndex: 'departman',
-                },
-                {
-                  title: 'Gönderen',
-                  dataIndex:
-                    'olusturanKullanici',
-                  render: () =>
+                  label: 'Gönderen',
+                  value:
                     currentTicket.olusturanKullanici ||
                     currentTicket.olusturanKullaniciAdi ||
                     '-',
                 },
                 {
-                  title: 'Öncelik',
-                  dataIndex: 'oncelik',
-                  render: () => (
-                    <Tag
-                      color={oncelikRengi(
-                        currentTicket.oncelik,
-                      )}
-                    >
-                      {
-                        oncelikMetni[
-                          currentTicket.oncelik
-                        ]
-                      }
+                  label: 'Öncelik',
+                  value: (
+                    <Tag tone={oncelikRengi(currentTicket.oncelik)}>
+                      {oncelikMetni[currentTicket.oncelik]}
                     </Tag>
                   ),
                 },
                 {
-                  title: 'Durum',
-                  dataIndex: 'durum',
-                  render: () => (
-                    <Tag
-                      color={durumRengi(
-                        currentTicket.durum,
-                      )}
-                    >
-                      {
-                        durumMetni[
-                          currentTicket.durum
-                        ]
-                      }
+                  label: 'Durum',
+                  value: (
+                    <Tag tone={durumRengi(currentTicket.durum)}>
+                      {durumMetni[currentTicket.durum]}
                     </Tag>
                   ),
                 },
                 {
-                  title: 'Oluşturma Tarihi',
-                  dataIndex:
-                    'olusturmaTarihi',
-                  render: () =>
-                    tarihFormatla(
-                      currentTicket.olusturmaTarihi,
-                    ),
+                  label: 'Oluşturma Tarihi',
+                  value: tarihFormatla(currentTicket.olusturmaTarihi),
                 },
                 {
-                  title: 'Son Güncelleme',
-                  dataIndex:
-                    'guncellemeTarihi',
-                  render: () =>
-                    tarihFormatla(
-                      currentTicket.guncellemeTarihi,
-                    ),
+                  label: 'Son Güncelleme',
+                  value: tarihFormatla(currentTicket.guncellemeTarihi),
                 },
               ]}
             />
 
-            <div
-              style={{
-                marginTop: 24,
-                padding: 20,
-                background:
-                  'rgba(0, 0, 0, 0.02)',
-                borderRadius: 8,
-              }}
-            >
-              <Text strong>
-                Talep Açıklaması
-              </Text>
-
-              <div
-                style={{
-                  marginTop: 12,
-                }}
-              >
-                <Text>
-                  {currentTicket.aciklama}
-                </Text>
+            <div style={{ marginTop: 24, padding: 20, background: 'rgba(0, 0, 0, 0.02)', borderRadius: 8 }}>
+              <Text strong>Talep Açıklaması</Text>
+              <div style={{ marginTop: 12 }}>
+                <Text>{currentTicket.aciklama}</Text>
               </div>
             </div>
 
+            <div style={{ marginTop: 24, padding: 20, background: 'rgba(0, 0, 0, 0.02)', borderRadius: 8 }}>
+              <Text strong style={{ display: 'block', marginBottom: 16 }}>
+                Eklenen Dosyalar
+              </Text>
+
+              {!currentTicket.dosyalar ||
+              currentTicket.dosyalar.length === 0 ? (
+                <EmptyState description="Bu talebe dosya eklenmemiş." />
+              ) : (
+                <div className="ui-stack" style={{ gap: 16 }}>
+                  {currentTicket.dosyalar.map((dosya) => {
+                    const dosyaUrl = dosyaUrlOlustur(dosya.dosyaYolu);
+                    const dosyaBilgisi = (
+                      <div>
+                        <Text strong>{dosya.orijinalDosyaAdi}</Text>
+                        <div>
+                          <Text secondary style={{ fontSize: 12 }}>
+                            {dosyaBoyutuFormatla(dosya.dosyaBoyutu)}
+                          </Text>
+                        </div>
+                      </div>
+                    );
+
+                    return (
+                      <div
+                        key={dosya.id}
+                        style={{
+                          padding: gorselDosyasiMi(dosya.mimeType) ? 12 : 14,
+                          border: '1px solid rgba(0, 0, 0, 0.08)',
+                          borderRadius: 8,
+                        }}
+                      >
+                        {gorselDosyasiMi(dosya.mimeType) && (
+                          <ImagePreview
+                            src={dosyaUrl}
+                            alt={dosya.orijinalDosyaAdi}
+                            style={{ maxHeight: 350, objectFit: 'contain' }}
+                          />
+                        )}
+                        <div
+                          className="ui-inline"
+                          style={{
+                            marginTop: gorselDosyasiMi(dosya.mimeType) ? 12 : 0,
+                            justifyContent: 'space-between',
+                            gap: 12,
+                          }}
+                        >
+                          <div className="ui-inline">
+                            {!gorselDosyasiMi(dosya.mimeType) && <FileIcon />}
+                            {dosyaBilgisi}
+                          </div>
+                          <LinkButton
+                            icon={<DownloadIcon />}
+                            href={dosyaUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Aç
+                          </LinkButton>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {!gonderilenSayfasiMi && (
-              <div
-                style={{
-                  marginTop: 24,
-                  paddingTop: 24,
-                  borderTop:
-                    '1px solid rgba(0, 0, 0, 0.06)',
-                }}
-              >
-                <Text
-                  strong
-                  style={{
-                    display: 'block',
-                    marginBottom: 16,
-                  }}
-                >
+              <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid rgba(0, 0, 0, 0.06)' }}>
+                <Text strong style={{ display: 'block', marginBottom: 16 }}>
                   Talep İşlemleri
                 </Text>
-
-                <Space wrap>
-                 {currentTicket.durum === 'bekliyor' && (
-  <Button
-    type="primary"
-    loading={durumGuncelleniyor}
-    onClick={() =>
-      durumGuncelle(
-        currentTicket.id,
-        'islemde',
-      )
-    }
-  >
-    İşleme Al
-  </Button>
-)}
-
-{currentTicket.durum === 'islemde' && (
-  <>
-    <Button
-      loading={durumGuncelleniyor}
-      onClick={() =>
-        durumGuncelle(
-          currentTicket.id,
-          'bekliyor',
-        )
-      }
-    >
-      Bekliyora Geri Al
-    </Button>
-
-    <Button
-      type="primary"
-      loading={durumGuncelleniyor}
-      onClick={() =>
-        durumGuncelle(
-          currentTicket.id,
-          'tamamlandi',
-        )
-      }
-    >
-      Tamamlandı Olarak İşaretle
-    </Button>
-  </>
-)}
-
-{currentTicket.durum === 'tamamlandi' && (
-  <>
-    <Button
-      loading={durumGuncelleniyor}
-      onClick={() =>
-        durumGuncelle(
-          currentTicket.id,
-          'islemde',
-        )
-      }
-    >
-      İşleme Geri Al
-    </Button>
-
-    <Tag color="green">
-      Bu talep tamamlandı
-    </Tag>
-  </>
-)}
-                </Space>
+                <div className="ui-inline">
+                  {currentTicket.durum === 'bekliyor' && (
+                    <Button
+                      variant="primary"
+                      loading={durumGuncelleniyor}
+                      onClick={() => durumGuncelle(currentTicket.id, 'islemde')}
+                    >
+                      İşleme Al
+                    </Button>
+                  )}
+                  {currentTicket.durum === 'islemde' && (
+                    <>
+                      <Button
+                        loading={durumGuncelleniyor}
+                        onClick={() => durumGuncelle(currentTicket.id, 'bekliyor')}
+                      >
+                        Bekliyora Geri Al
+                      </Button>
+                      <Button
+                        variant="primary"
+                        loading={durumGuncelleniyor}
+                        onClick={() => durumGuncelle(currentTicket.id, 'tamamlandi')}
+                      >
+                        Tamamlandı Olarak İşaretle
+                      </Button>
+                    </>
+                  )}
+                  {currentTicket.durum === 'tamamlandi' && (
+                    <>
+                      <Button
+                        loading={durumGuncelleniyor}
+                        onClick={() => durumGuncelle(currentTicket.id, 'islemde')}
+                      >
+                        İşleme Geri Al
+                      </Button>
+                      <Tag tone="green">Bu talep tamamlandı</Tag>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
             {gonderilenSayfasiMi && (
-              <div
-                style={{
-                  marginTop: 24,
-                  padding: 16,
-                  background:
-                    'rgba(22, 119, 255, 0.06)',
-                  borderRadius: 8,
-                }}
-              >
-                <Text type="secondary">
-                  Bu talebi başka bir
-                  departmana gönderdiğiniz için
-                  yalnızca durumunu takip
-                  edebilirsiniz. İşlem yapma
-                  yetkisi hedef departmandadır.
+              <div style={{ marginTop: 24, padding: 16, background: 'rgba(22, 119, 255, 0.06)', borderRadius: 8 }}>
+                <Text secondary>
+                  Bu talebi başka bir departmana gönderdiğiniz için yalnızca durumunu takip edebilirsiniz. İşlem yapma yetkisi hedef departmandadır.
                 </Text>
               </div>
             )}
           </>
         )}
       </Drawer>
-    </PageContainer>
+    </div>
   );
 };
 

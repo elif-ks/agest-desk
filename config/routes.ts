@@ -19,11 +19,14 @@ export default [
     path: '/dashboard',
     name: 'Ana Panel',
     icon: 'home',
+      access: 'canUser',
+
     component: './dashboard/analysis',
   },
 
   {
     path: '/talepler',
+      access: 'canUser',
     name: 'Talepler',
     icon: 'fileText',
     routes: [
@@ -71,9 +74,43 @@ export default [
   },
 
   {
-    path: '/',
-    redirect: '/dashboard',
-  },
+  path: '/admin',
+  name: 'Yönetim',
+  icon: 'setting',
+  access: 'canAdmin',
+  routes: [
+    {
+      path: '/admin',
+      redirect: '/admin/dashboard',
+    },
+    {
+      path: '/admin/dashboard',
+      name: 'Yönetim Paneli',
+      icon: 'dashboard',
+      access: 'canAdmin',
+      component: './admin/dashboard/index',
+    },
+    {
+      path: '/admin/kullanicilar',
+      name: 'Kullanıcı Yönetimi',
+      icon: 'team',
+      access: 'canAdmin',
+      component: './admin/kullanicilar/index',
+      
+    },
+    {
+  path: '/admin/departmanlar',
+  name: 'Departman Yönetimi',
+  icon: 'apartment',
+  access: 'canAdmin',
+  component: './admin/departmanlar',
+},
+  ],
+},
+// {
+//   path: '/',
+//   redirect: '/dashboard',
+// },
 
   {
     path: '/*',

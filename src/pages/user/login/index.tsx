@@ -1,39 +1,33 @@
-import {
-  LockOutlined,
-  SafetyCertificateOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
-import {
-  LoginForm,
-  ProFormCheckbox,
-  ProFormText,
-} from '@ant-design/pro-components';
 import { Helmet } from '@umijs/max';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
+
 import {
   Alert,
-  App,
+  Button,
   Card,
-  Col,
-  Row,
-  Space,
+  Checkbox,
+  FormField,
+  Input,
+  PasswordInput,
   Tag,
-  Typography,
-} from 'antd';
-import { createStyles } from 'antd-style';
-import React, { useState } from 'react';
-
+  Text,
+  ToastHost,
+  toast,
+} from '@/components/ui';
 import {
-  apiRequest,
-} from '@/services/helpDeskApi';
+  KeyIcon,
+  SafetyCertificateIcon,
+  UserIcon,
+} from '@/components/ui/icons';
+import { apiRequest } from '@/services/helpDeskApi';
 
 import Settings from '../../../../config/defaultSettings';
-
-const { Text, Title } = Typography;
 
 type LoginValues = {
   kullaniciAdi: string;
   sifre: string;
-  beniHatirla?: boolean;
+  beniHatirla: boolean;
 };
 
 type Kullanici = {
@@ -53,442 +47,313 @@ type LoginResponse = {
   kullanici?: Kullanici;
 };
 
-const useStyles = createStyles(() => ({
-  container: {
-    minHeight: '100vh',
-    background:
-      'linear-gradient(135deg, #eef3ff 0%, #f7f9fc 48%, #ffffff 100%)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-  },
+const Login = () => {
+  const [values, setValues] = useState<LoginValues>({
+    kullaniciAdi: '',
+    sifre: '',
+    beniHatirla: false,
+  });
+  const [hataMesaji, setHataMesaji] = useState('');
+  const [girisYapiliyor, setGirisYapiliyor] = useState(false);
 
-  wrapper: {
-    width: '100%',
-    maxWidth: 1120,
-  },
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (girisYapiliyor) return;
 
-  card: {
-    overflow: 'hidden',
-    borderRadius: 28,
-    boxShadow:
-      '0 28px 90px rgba(15, 23, 42, 0.14)',
-    border: '1px solid rgba(15, 23, 42, 0.06)',
-  },
-
-  brandArea: {
-    minHeight: 620,
-    padding: '56px 48px',
-    background:
-      'linear-gradient(145deg, #3e649d 0%, #6076a0b0 54%, #2156a4 100%)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    color: '#ffffff',
-  },
-
-  logo: {
-    width: 190,
-    maxWidth: '100%',
-    objectFit: 'contain',
-  },
-
-  brandContent: {
-    maxWidth: 450,
-  },
-
-  brandTitle: {
-    color: '#ffffff !important',
-    fontSize: '42px !important',
-    marginBottom: '14px !important',
-  },
-
-  brandText: {
-    color: 'rgba(255, 255, 255, 0.74)',
-    fontSize: 17,
-    lineHeight: 1.8,
-  },
-
-  feature: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    color: 'rgba(255, 255, 255, 0.88)',
-  },
-
-  loginArea: {
-    minHeight: 620,
-    background: '#ffffff',
-    padding: '56px 52px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-  },
-
-  loginHeader: {
-    marginBottom: 28,
-  },
-
-  form: {
-    maxWidth: 420,
-    width: '100%',
-    margin: '0 auto',
-  },
-
-  footer: {
-    marginTop: 34,
-    textAlign: 'center',
-  },
-}));
-
-const Login: React.FC = () => {
-  const { styles } = useStyles();
-  const { message } = App.useApp();
-
-  const [hataMesaji, setHataMesaji] =
-    useState<string>('');
-
-  const [
-    girisYapiliyor,
-    setGirisYapiliyor,
-  ] = useState<boolean>(false);
-
-  const handleSubmit = async (
-    values: LoginValues,
-  ) => {
     setGirisYapiliyor(true);
     setHataMesaji('');
 
     try {
-      const data =
-        await apiRequest<LoginResponse>(
-          '/auth/login',
-          {
-            method: 'POST',
-            auth: false,
-            body: JSON.stringify({
-              kullaniciAdi:
-                values.kullaniciAdi.trim(),
-              sifre: values.sifre,
-            }),
-          },
-        );
+      const data = await apiRequest<LoginResponse>('/auth/login', {
+        method: 'POST',
+        auth: false,
+        body: JSON.stringify({
+          kullaniciAdi: values.kullaniciAdi.trim(),
+          sifre: values.sifre,
+        }),
+      });
 
-      if (
-        !data.token ||
-        !data.kullanici
-      ) {
-        throw new Error(
-          'Giriş bilgileri sunucudan alınamadı.',
-        );
+      if (!data.token || !data.kullanici) {
+        throw new Error('Giriş bilgileri sunucudan alınamadı.');
       }
 
-      localStorage.setItem(
-        'helpDeskToken',
-        data.token,
-      );
-
+      localStorage.setItem('helpDeskToken', data.token);
       localStorage.setItem(
         'helpDeskKullanici',
-        JSON.stringify(
-          data.kullanici,
-        ),
+        JSON.stringify(data.kullanici),
       );
 
-      message.success(
-        `Hoş geldiniz ${data.kullanici.ad}`,
-      );
+      toast.success(`Hoş geldiniz ${data.kullanici.ad}`);
 
       window.location.href =
-        '/dashboard';
+        data.kullanici.rol === 'admin'
+          ? '/admin/dashboard'
+          : '/dashboard';
     } catch (error) {
-      console.error(
-        'Giriş hatası:',
-        error,
+      console.error('Giriş hatası:', error);
+      setHataMesaji(
+        error instanceof Error
+          ? error.message
+          : 'Giriş sırasında beklenmeyen bir hata oluştu.',
       );
-
-      if (error instanceof Error) {
-        setHataMesaji(
-          error.message,
-        );
-      } else {
-        setHataMesaji(
-          'Giriş sırasında beklenmeyen bir hata oluştu.',
-        );
-      }
     } finally {
       setGirisYapiliyor(false);
     }
   };
 
   return (
-    <div className={styles.container}>
+    <div className="login-page">
+      <ToastHost />
       <Helmet>
         <title>
-          Giriş Yap
-          {Settings.title
-            ? ` - ${Settings.title}`
-            : ''}
+          Giriş Yap{Settings.title ? ` - ${Settings.title}` : ''}
         </title>
       </Helmet>
 
-      <div className={styles.wrapper}>
-        <Card
-          className={styles.card}
-          styles={{
-            body: {
-              padding: 0,
-            },
-          }}
-        >
-          <Row>
-            <Col
-              xs={0}
-              md={11}
-            >
-              <div
-                className={
-                  styles.brandArea
-                }
-              >
-                <div>
-                  <img
-                    src="/icons/AgestLogo.png"
-                    alt="AGEST Logo"
-                    className={
-                      styles.logo
-                    }
-                  />
+      <style>{`
+        .login-page {
+          min-height: 100vh;
+          padding: 24px;
+          background: linear-gradient(135deg, #eef3ff 0%, #f7f9fc 48%, #ffffff 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+        }
+        .login-wrapper { width: 100%; max-width: 1120px; }
+        .login-card {
+          overflow: hidden;
+          border-radius: 28px;
+          border: 1px solid rgba(15, 23, 42, 0.06);
+          box-shadow: 0 28px 90px rgba(15, 23, 42, 0.14);
+        }
+        .login-card > .ui-card__body { padding: 0; }
+        .login-columns { display: grid; grid-template-columns: 11fr 13fr; }
+        .login-brand {
+          min-height: 620px;
+          padding: 56px 48px;
+          background: linear-gradient(145deg, #3e649d 0%, #6076a0b0 54%, #2156a4 100%);
+          color: #ffffff;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          box-sizing: border-box;
+        }
+        .login-logo { width: 190px; max-width: 100%; object-fit: contain; }
+        .login-brand-content { max-width: 450px; }
+        .login-brand-title {
+          margin: 0 0 14px;
+          color: #ffffff;
+          font-size: 42px;
+          line-height: 1.2;
+          font-weight: 600;
+        }
+        .login-brand-text {
+          color: rgba(255, 255, 255, 0.74);
+          font-size: 17px;
+          line-height: 1.8;
+        }
+        .login-features {
+          margin-top: 34px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        .login-feature {
+          color: rgba(255, 255, 255, 0.88);
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .login-copyright { color: rgba(255, 255, 255, 0.48); }
+        .login-area {
+          min-height: 620px;
+          padding: 56px 52px;
+          background: #ffffff;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          box-sizing: border-box;
+        }
+        .login-form { width: 100%; max-width: 420px; margin: 0 auto; }
+        .login-header { margin-bottom: 28px; }
+        .login-title {
+          margin: 0 0 8px;
+          color: rgba(0, 0, 0, 0.88);
+          font-size: 30px;
+          line-height: 1.3;
+          font-weight: 600;
+        }
+        .login-input-wrap { position: relative; }
+        .login-input-wrap > svg {
+          position: absolute;
+          z-index: 1;
+          top: 50%;
+          left: 12px;
+          transform: translateY(-50%);
+          color: rgba(0, 0, 0, 0.45);
+          font-size: 16px;
+        }
+        .login-input {
+          min-height: 40px;
+          padding-left: 38px;
+          font-size: 16px;
+        }
+        .login-remember { margin-top: -4px; margin-bottom: 22px; }
+        .login-submit {
+          width: 100%;
+          height: 48px;
+          border-radius: 10px;
+          font-weight: 600;
+        }
+        .login-error { margin-bottom: 24px; }
+        .login-footer { margin-top: 34px; text-align: center; }
+        @media (max-width: 767px) {
+          .login-columns { display: block; }
+          .login-brand { display: none; }
+          .login-area { min-height: 620px; }
+        }
+      `}</style>
+
+      <div className="login-wrapper">
+        <Card className="login-card">
+          <div className="login-columns">
+            <section className="login-brand">
+              <img
+                src="/icons/AgestLogo.png"
+                alt="AGEST Logo"
+                className="login-logo"
+              />
+
+              <div className="login-brand-content">
+                <Tag tone="blue">Kurumsal Talep Sistemi</Tag>
+                <h1 className="login-brand-title">AGEST Desk</h1>
+                <div className="login-brand-text">
+                  Departmanlar arası destek, talep ve iş takibi için
+                  geliştirilmiş şirket içi yönetim platformu.
                 </div>
 
-                <div
-                  className={
-                    styles.brandContent
-                  }
-                >
-                  <Tag
-                    color="blue"
-                    style={{
-                      marginBottom: 18,
-                    }}
-                  >
-                    Kurumsal Talep Sistemi
-                  </Tag>
+                <div className="login-features">
+                  <div className="login-feature">
+                    <SafetyCertificateIcon />
+                    Güvenli kullanıcı girişi
+                  </div>
+                  <div className="login-feature">
+                    <SafetyCertificateIcon />
+                    Departman bazlı yetkilendirme
+                  </div>
+                  <div className="login-feature">
+                    <SafetyCertificateIcon />
+                    Gerçek zamanlı talep takibi
+                  </div>
+                </div>
+              </div>
 
-                  <Title
-                    level={1}
-                    className={
-                      styles.brandTitle
-                    }
-                  >
-                    AGEST Desk
-                  </Title>
+              <span className="login-copyright">© 2026 AGEST</span>
+            </section>
 
-                  <Text
-                    className={
-                      styles.brandText
-                    }
-                  >
-                    Departmanlar arası destek,
-                    talep ve iş takibi için
-                    geliştirilmiş şirket içi
-                    yönetim platformu.
+            <section className="login-area">
+              <div className="login-form">
+                <div className="login-header">
+                  <h2 className="login-title">Hesabınıza Giriş Yapın</h2>
+                  <Text secondary>
+                    Kullanıcı adınız ve şifrenizle AGEST Desk çalışma alanına
+                    erişin.
                   </Text>
-
-                  <Space
-                    direction="vertical"
-                    size={16}
-                    style={{
-                      marginTop: 34,
-                    }}
-                  >
-                    <div
-                      className={
-                        styles.feature
-                      }
-                    >
-                      <SafetyCertificateOutlined />
-                      Güvenli kullanıcı girişi
-                    </div>
-
-                    <div
-                      className={
-                        styles.feature
-                      }
-                    >
-                      <SafetyCertificateOutlined />
-                      Departman bazlı
-                      yetkilendirme
-                    </div>
-
-                    <div
-                      className={
-                        styles.feature
-                      }
-                    >
-                      <SafetyCertificateOutlined />
-                      Gerçek zamanlı talep
-                      takibi
-                    </div>
-                  </Space>
                 </div>
 
-                <Text
-                  style={{
-                    color:
-                      'rgba(255, 255, 255, 0.48)',
-                  }}
-                >
-                  © 2026 AGEST
-                </Text>
-              </div>
-            </Col>
+                <form onSubmit={handleSubmit}>
+                  {hataMesaji && (
+                    <div className="login-error">
+                      <Alert type="error">{hataMesaji}</Alert>
+                    </div>
+                  )}
 
-            <Col
-              xs={24}
-              md={13}
-            >
-              <div
-                className={
-                  styles.loginArea
-                }
-              >
-                <div
-                  className={
-                    styles.form
-                  }
-                >
-                  <div
-                    className={
-                      styles.loginHeader
-                    }
+                  <FormField
+                    label="Kullanıcı Adı"
+                    htmlFor="kullaniciAdi"
+                    required
                   >
-                    <Title
-                      level={2}
-                      style={{
-                        marginBottom: 8,
-                      }}
-                    >
-                      Hesabınıza Giriş Yapın
-                    </Title>
-
-                    <Text type="secondary">
-                      Kullanıcı adınız ve
-                      şifrenizle AGEST Desk
-                      çalışma alanına erişin.
-                    </Text>
-                  </div>
-
-                  <LoginForm<LoginValues>
-                    onFinish={handleSubmit}
-                    submitter={{
-                      searchConfig: {
-                        submitText:
-                          'Giriş Yap',
-                      },
-                      submitButtonProps: {
-                        size: 'large',
-                        loading:
-                          girisYapiliyor,
-                        block: true,
-                        style: {
-                          height: 48,
-                          borderRadius: 10,
-                          fontWeight: 600,
-                        },
-                      },
-                      resetButtonProps: {
-                        style: {
-                          display: 'none',
-                        },
-                      },
-                    }}
-                  >
-                    {hataMesaji && (
-                      <Alert
-                        type="error"
-                        showIcon
-                        message={
-                          hataMesaji
+                    <div className="login-input-wrap">
+                      <UserIcon />
+                      <Input
+                        id="kullaniciAdi"
+                        name="kullaniciAdi"
+                        className="login-input"
+                        value={values.kullaniciAdi}
+                        autoComplete="username"
+                        placeholder="Kullanıcı adınızı giriniz"
+                        required
+                        requiredMessage="Kullanıcı adınızı giriniz."
+                        disabled={girisYapiliyor}
+                        onChange={(event) =>
+                          setValues((current) => ({
+                            ...current,
+                            kullaniciAdi: event.target.value,
+                          }))
                         }
-                        style={{
-                          marginBottom: 24,
-                        }}
                       />
-                    )}
-
-                    <ProFormText
-                      name="kullaniciAdi"
-                      label="Kullanıcı Adı"
-                      fieldProps={{
-                        size: 'large',
-                        prefix:
-                          <UserOutlined />,
-                        autoComplete:
-                          'username',
-                      }}
-                      placeholder="Kullanıcı adınızı giriniz"
-                      rules={[
-                        {
-                          required: true,
-                          message:
-                            'Kullanıcı adınızı giriniz.',
-                        },
-                      ]}
-                    />
-
-                    <ProFormText.Password
-                      name="sifre"
-                      label="Şifre"
-                      fieldProps={{
-                        size: 'large',
-                        prefix:
-                          <LockOutlined />,
-                        autoComplete:
-                          'current-password',
-                      }}
-                      placeholder="Şifrenizi giriniz"
-                      rules={[
-                        {
-                          required: true,
-                          message:
-                            'Şifrenizi giriniz.',
-                        },
-                      ]}
-                    />
-
-                    <div
-                      style={{
-                        marginTop: -4,
-                        marginBottom: 22,
-                      }}
-                    >
-                      <ProFormCheckbox
-                        noStyle
-                        name="beniHatirla"
-                      >
-                        Beni Hatırla
-                      </ProFormCheckbox>
                     </div>
-                  </LoginForm>
+                  </FormField>
 
-                  <div
-                    className={
-                      styles.footer
-                    }
-                  >
-                    <Text type="secondary">
-                      Yetki veya giriş sorunu
-                      yaşarsanız sistem
-                      yöneticinizle iletişime
-                      geçin.
-                    </Text>
+                  <FormField label="Şifre" htmlFor="sifre" required>
+                    <div className="login-input-wrap">
+                      <KeyIcon />
+                      <PasswordInput
+                        id="sifre"
+                        name="sifre"
+                        className="login-input"
+                        value={values.sifre}
+                        autoComplete="current-password"
+                        placeholder="Şifrenizi giriniz"
+                        required
+                        requiredMessage="Şifrenizi giriniz."
+                        disabled={girisYapiliyor}
+                        onChange={(event) =>
+                          setValues((current) => ({
+                            ...current,
+                            sifre: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </FormField>
+
+                  <div className="login-remember">
+                    <Checkbox
+                      checked={values.beniHatirla}
+                      disabled={girisYapiliyor}
+                      onChange={(event) =>
+                        setValues((current) => ({
+                          ...current,
+                          beniHatirla: event.target.checked,
+                        }))
+                      }
+                    >
+                      Beni Hatırla
+                    </Checkbox>
                   </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="login-submit"
+                    loading={girisYapiliyor}
+                    disabled={girisYapiliyor}
+                  >
+                    Giriş Yap
+                  </Button>
+                </form>
+
+                <div className="login-footer">
+                  <Text secondary>
+                    Yetki veya giriş sorunu yaşarsanız sistem yöneticinizle
+                    iletişime geçin.
+                  </Text>
                 </div>
               </div>
-            </Col>
-          </Row>
+            </section>
+          </div>
         </Card>
       </div>
     </div>

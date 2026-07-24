@@ -8,14 +8,38 @@ export const apiRequest = async <T>(
   endpoint: string,
   options: ApiOptions = {},
 ): Promise<T> => {
-  const { auth = true, headers, ...requestOptions } = options;
+  const {
+    auth = true,
+    headers,
+    ...requestOptions
+  } = options;
 
-  const token = localStorage.getItem('helpDeskToken');
+  const token = localStorage.getItem(
+    'helpDeskToken',
+  );
 
-  const requestHeaders = new Headers(headers);
+  const requestHeaders = new Headers(
+    headers,
+  );
 
-  if (!requestHeaders.has('Content-Type')) {
-    requestHeaders.set('Content-Type', 'application/json');
+  const formDataMi =
+    requestOptions.body instanceof FormData;
+
+  if (
+    !formDataMi &&
+    !requestHeaders.has('Content-Type')
+  ) {
+    requestHeaders.set(
+      'Content-Type',
+      'application/json',
+    );
+  }
+
+  if (
+    formDataMi &&
+    requestHeaders.has('Content-Type')
+  ) {
+    requestHeaders.delete('Content-Type');
   }
 
   if (auth && token) {
@@ -39,28 +63,38 @@ export const apiRequest = async <T>(
     data = await response.json();
   } catch {
     data = {
-      message: 'Sunucudan geçersiz cevap alındı.',
+      message:
+        'Sunucudan geçersiz cevap alındı.',
     };
   }
 
   if (response.status === 401) {
-    localStorage.removeItem('helpDeskToken');
-    localStorage.removeItem('helpDeskKullanici');
+    localStorage.removeItem(
+      'helpDeskToken',
+    );
+
+    localStorage.removeItem(
+      'helpDeskKullanici',
+    );
 
     if (
-      window.location.pathname !== '/user/login'
+      window.location.pathname !==
+      '/user/login'
     ) {
-      window.location.href = '/user/login';
+      window.location.href =
+        '/user/login';
     }
 
     throw new Error(
-      data.message || 'Oturum süreniz doldu.',
+      data.message ||
+        'Oturum süreniz doldu.',
     );
   }
 
   if (!response.ok) {
     throw new Error(
-      data.message || 'İşlem başarısız.',
+      data.message ||
+        'İşlem başarısız.',
     );
   }
 
@@ -68,13 +102,16 @@ export const apiRequest = async <T>(
 };
 
 export const getToken = () => {
-  return localStorage.getItem('helpDeskToken');
+  return localStorage.getItem(
+    'helpDeskToken',
+  );
 };
 
 export const getKullanici = () => {
-  const kullanici = localStorage.getItem(
-    'helpDeskKullanici',
-  );
+  const kullanici =
+    localStorage.getItem(
+      'helpDeskKullanici',
+    );
 
   if (!kullanici) {
     return null;
@@ -83,15 +120,23 @@ export const getKullanici = () => {
   try {
     return JSON.parse(kullanici);
   } catch {
-    localStorage.removeItem('helpDeskKullanici');
+    localStorage.removeItem(
+      'helpDeskKullanici',
+    );
 
     return null;
   }
 };
 
 export const cikisYap = () => {
-  localStorage.removeItem('helpDeskToken');
-  localStorage.removeItem('helpDeskKullanici');
+  localStorage.removeItem(
+    'helpDeskToken',
+  );
 
-  window.location.href = '/user/login';
+  localStorage.removeItem(
+    'helpDeskKullanici',
+  );
+
+  window.location.href =
+    '/user/login';
 };

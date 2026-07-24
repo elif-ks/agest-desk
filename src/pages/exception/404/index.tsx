@@ -1,18 +1,21 @@
 import { Link, useIntl } from '@umijs/max';
-import { Button, Card, Result } from 'antd';
 import React from 'react';
+
+import { Button, Card, ResultView } from '@/components/ui';
+import { NotFoundIcon } from '@/components/ui/icons';
 
 const Exception404: React.FC = () => {
   const intl = useIntl();
   return (
-    <Card variant="borderless">
-      <Result
+    <Card>
+      <ResultView
         status="404"
         title="404"
-        subTitle={intl.formatMessage({ id: 'pages.404.subTitle' })}
-        extra={
+        description={intl.formatMessage({ id: 'pages.404.subTitle' })}
+        icon={<NotFoundIcon />}
+        actions={
           <Link to="/" prefetch>
-            <Button type="primary">
+            <Button variant="primary">
               {intl.formatMessage({ id: 'pages.404.buttonText' })}
             </Button>
           </Link>
